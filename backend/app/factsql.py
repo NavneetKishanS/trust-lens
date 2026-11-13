@@ -7,6 +7,7 @@ Dev B's clinical/facts.py calls compute_facts() and stores the result in clinica
         f["block"]           # 'lab_trend'  -> lineage transform 'facts.sql:lab_trend'
         f["kind"]            # 'LAB_TREND'
         f["data"]            # dict, e.g. {"loinc": "2339-0", "latest": {"value": 91, "date": "2025-10-02", "flag": "NORMAL"}, ...}
+        # sort_* columns only order the rows and are not part of the data
         f["data_json"]       # same, canonical JSON text for clinical.facts.data_json
         f["source_row_ids"]  # ['OBS-0004411', 'OBS-0005120'] (store ','.join(...) in clinical.facts)
 
@@ -16,10 +17,11 @@ CLI:  python -m app.factsql <patient_id>        # print the facts as JSON
 from __future__ import annotations
 
 import json
+import re
 import random
 import sys
 
-from app.db import Database, get_db
+from .db import DB, get_db
 
 FACTS_SQL = "db/facts.sql"
 BLOCK_ORDER = ["lab_trend", "condition", "medication", "immunization", "encounter", "careplan", "allergy",
@@ -40,31 +42,40 @@ def _num(v):
     return v
 
 
+def tables_in(sql: str) -> list[str]:
+    """schema.table names a block reads (curated.* / ref.*)."""
+    return sorted(set(re.findall(r"\b((?:curated|ref)\.[a-z_]+)\b", sql)))
+
+
 def pack_row(row: dict) -> dict:
-    """{'kind', 'source_row_ids', 'a', 'b__c', ...} -> {'kind', 'source_row_ids': [...], 'data': {...}}"""
+    """{'kind', 'source_row_ids', 'a', 'b__c', 'opt_d', 'sort_x', ...} -> {'kind', 'source_row_ids': [...], 'data': {...}}
+    b__c nests, opt_d is dropped when NULL, sort_x is ordering only (see the header of db/facts.sql)."""
     data: dict = {}
     groups: dict[str, dict] = {}
     for col, val in row.items():
-        if col in ("kind", "source_row_ids"):
+        if col in ("kind", "source_row_ids") or col.startswith("sort_"):
             continue
         if "__" in col:
             outer, inner = col.split("__", 1)
             groups.setdefault(outer, {})[inner] = _num(val)
-        elif val is not None:
+        elif col.startswith("opt_"):
+            if val is not None:
+                data[col[4:]] = _num(val)
+        else:
             data[col] = _num(val)
     for outer, fields in groups.items():
-        kept = {k: v for k, v in fields.items() if v is not None}
-        data[outer] = kept or None
+        data[outer] = fields if any(v is not None for v in fields.values()) else None
     ids = [s.strip() for s in (row.get("source_row_ids") or "").split(",") if s.strip()]
     return {"kind": row["kind"], "data": data, "source_row_ids": ids}
 
 
-def compute_facts(patient_id: str, db: Database | None = None, blocks: list[str] | None = None) -> list[dict]:
+def compute_facts(patient_id: str, db: DB | None = None, blocks: list[str] | None = None) -> list[dict]:
     db = db or get_db()
-    sql_blocks = db.named_blocks(FACTS_SQL)
+    sql_blocks = DB.named_blocks(FACTS_SQL)
     facts = []
     for name in blocks or BLOCK_ORDER:
-        for row in db.query(sql_blocks[name], {"patient_id": patient_id}):
+        sql = sql_blocks[name]
+        for row in db.query(sql, [patient_id] * sql.count("?")):
             f = pack_row(row)
             f["block"] = name
             f["data_json"] = json.dumps(f["data"], sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -72,7 +83,7 @@ def compute_facts(patient_id: str, db: Database | None = None, blocks: list[str]
     return facts
 
 
-def missing_row_ids(facts: list[dict], db: Database | None = None) -> list[str]:
+def missing_row_ids(facts: list[dict], db: DB | None = None) -> list[str]:
     db = db or get_db()
     by_table: dict[str, set] = {}
     for f in facts:

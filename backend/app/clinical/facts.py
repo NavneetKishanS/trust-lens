@@ -201,16 +201,23 @@ def next_steps(pid: str, labs: list[dict], encs: list[dict], plans: list[dict]) 
 
 
 def _from_sql_blocks(db: DB, pid: str) -> dict[str, list[dict]]:
+    """Dev A's blocks return either a data_json column or plain data columns (packed by app.factsql).
+    A block whose tables aren't loaded (e.g. the dev fixture has no ref.*) keeps the Python builder."""
     if not FACTS_SQL.exists():
         return {}
+    from ..factsql import pack_row, tables_in
+
     out: dict[str, list[dict]] = {}
     for name, sql in DB.named_blocks(FACTS_SQL).items():
         kind = name.upper()
-        if kind not in KINDS:
+        if kind not in KINDS or not all(table_exists(db, t) for t in tables_in(sql)):
             continue
         rows = db.query(sql, [pid] * sql.count("?"))
-        out[kind] = [_fact(pid, kind, r["source_row_ids"], json.loads(r["data_json"]),
-                           [s.strip() for s in str(r["source_row_ids"]).split(",") if s.strip()]) for r in rows]
+        out[kind] = []
+        for r in rows:
+            data = json.loads(r["data_json"]) if "data_json" in r else pack_row(r)["data"]
+            sources = [s.strip() for s in str(r["source_row_ids"]).split(",") if s.strip()]
+            out[kind].append(_fact(pid, kind, r["source_row_ids"], data, sources))
     return out
 
 

@@ -28,7 +28,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from app.db import Database, get_db, repo_path
+from . import audit, lineage
+from .db import DB, get_db, repo_path
+from .schema import ensure_schema
 
 SCHEMAS = ["raw", "curated", "ref", "clinical", "community", "pool", "research", "gov", "evals"]
 SCHEMA_SQL = "db/schema.sql"
@@ -169,41 +171,15 @@ def pseudo_id(patient_id: str, salt: str) -> str:
     return "ANON-" + hashlib.sha256((salt + patient_id).encode("utf-8")).hexdigest()[:12]
 
 
-def audit_append(db: Database, actor: str, action_type: str, subject: str, payload: dict) -> int:
-    """Append to gov.audit_events. Uses Dev B's app.audit.append when it exists; otherwise inserts
-    directly following shared §9. event_ts is stored with whole seconds so its isoformat() is stable."""
-    try:
-        from app.audit import append  # type: ignore
-    except ImportError:
-        append = None
-    if append is not None:
-        return append(actor, action_type, subject, payload)
-
-    last = db.query("SELECT seq, row_hash FROM gov.audit_events ORDER BY seq DESC LIMIT 1")
-    seq = (last[0]["seq"] + 1) if last else 1
-    prev_hash = last[0]["row_hash"] if last else "0" * 64
-    event_ts = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None, microsecond=0)
-    payload_canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    row_hash = hashlib.sha256(
-        "|".join([prev_hash, event_ts.isoformat(), actor, action_type, subject, payload_canonical]).encode("utf-8")
-    ).hexdigest()
-    db.insert_rows("gov.audit_events", [dict(
-        seq=seq, event_ts=event_ts, actor=actor, action_type=action_type, subject=subject,
-        payload_json=payload_canonical, prev_hash=prev_hash, row_hash=row_hash,
-    )])
-    return seq
-
-
-def add_lineage(db: Database, rows: list[tuple[str, str, str, str, str]]) -> None:
-    """rows: (derived_id, derived_type, source_id, source_type, transform). Replaces earlier edges with
-    the same (derived_id, transform) so reloads don't duplicate them."""
-    now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None, microsecond=0)
-    for derived_id, transform in sorted({(r[0], r[4]) for r in rows}):
+def add_lineage(db: DB, rows: list[tuple[str, str, str, str, str]]) -> None:
+    """rows: (derived_id, derived_type, source_id, source_type, transform). Edges from an earlier load with the
+    same (derived_id, transform) are replaced, so reloads don't duplicate them."""
+    groups: dict[tuple[str, str, str], list[tuple[str, str]]] = {}
+    for derived_id, derived_type, source_id, source_type, transform in rows:
+        groups.setdefault((derived_id, derived_type, transform), []).append((source_id, source_type))
+    for (derived_id, derived_type, transform), sources in groups.items():
         db.execute("DELETE FROM gov.lineage_edges WHERE derived_id = ? AND transform = ?", [derived_id, transform])
-    db.insert_rows("gov.lineage_edges", [dict(
-        derived_id=d, derived_type=dtp, source_id=s, source_type=st, transform=t,
-        agent=None, model=None, prompt_hash=None, created_at=now,
-    ) for d, dtp, s, st, t in rows])
+        lineage.add(derived_id, derived_type, sources, transform=transform, db=db)
 
 
 def _sha256_file(path: Path) -> str:
@@ -239,12 +215,13 @@ def _read_ref_csv(name: str) -> pd.DataFrame:
 # Steps
 # --------------------------------------------------------------------------------------------
 
-def create_schema(db: Database, reset: bool) -> None:
+def create_schema(db: DB, reset: bool) -> None:
     if reset:
         for s in SCHEMAS:
             db.execute(f"DROP SCHEMA IF EXISTS {s} CASCADE")
         log(f"dropped schemas: {', '.join(SCHEMAS)}")
     db.run_script(SCHEMA_SQL)
+    ensure_schema(db)  # Dev B's gov + clinical tables
 
 
 def stage_csvs(csv_dir: Path):
@@ -276,7 +253,7 @@ def stage_csvs(csv_dir: Path):
     return stg, files
 
 
-def load_curated(db: Database, stg, has_system: bool) -> dict[str, int]:
+def load_curated(db: DB, stg, has_system: bool) -> dict[str, int]:
     counts = {}
     for table, sql in TRANSFORMS.items():
         t0 = time.time()
@@ -298,7 +275,7 @@ def load_curated(db: Database, stg, has_system: bool) -> dict[str, int]:
     return counts
 
 
-def load_pseudo_ids(db: Database) -> int:
+def load_pseudo_ids(db: DB) -> int:
     salt = anon_salt()
     ids = [r["patient_id"] for r in db.query("SELECT patient_id FROM curated.patients ORDER BY patient_id")]
     db.execute("DELETE FROM curated.pseudo_ids")
@@ -309,7 +286,7 @@ def load_pseudo_ids(db: Database) -> int:
     return len(rows)
 
 
-def load_lab_ranges(db: Database) -> int:
+def load_lab_ranges(db: DB) -> int:
     df = _read_ref_csv("lab_ranges.csv")
     present = {(r["concept_code"], r["units"]) for r in db.query(
         "SELECT DISTINCT concept_code, units FROM curated.observations WHERE value_num IS NOT NULL")}
@@ -324,7 +301,7 @@ def load_lab_ranges(db: Database) -> int:
     return len(keep)
 
 
-def load_symptom_vocab(db: Database) -> int:
+def load_symptom_vocab(db: DB) -> int:
     df = _read_ref_csv("symptom_vocab.csv")
     owner: dict[str, str] = {}
     rows = []
@@ -343,7 +320,7 @@ def load_symptom_vocab(db: Database) -> int:
     return len(rows)
 
 
-def load_known_effects(db: Database) -> int:
+def load_known_effects(db: DB) -> int:
     df = _read_ref_csv("known_effects.csv")
     vocab = {r["term"] for r in db.query("SELECT term FROM ref.symptom_vocab")}
     cvx = {r["concept_code"] for r in db.query("SELECT DISTINCT concept_code FROM curated.immunizations")}
@@ -370,7 +347,7 @@ def _clean_label(label: str) -> str:
     return label
 
 
-def load_concepts(db: Database) -> int:
+def load_concepts(db: DB) -> int:
     """One row per distinct code in conditions, medications, immunizations and the lab LOINCs,
     plus hand synonyms (db/ref/concept_synonyms.csv) and FREE: concepts for research topics we
     don't have codes for in the data."""
@@ -416,8 +393,12 @@ def load_concepts(db: Database) -> int:
     return len(rows)
 
 
-def create_pool_views(db: Database) -> None:
+def create_pool_views(db: DB) -> bool:
+    if not repo_path(POOL_VIEWS_SQL).exists():
+        log(f"  {POOL_VIEWS_SQL} not found; pool views skipped")
+        return False
     db.run_script(POOL_VIEWS_SQL)
+    return True
 
 
 # --------------------------------------------------------------------------------------------
@@ -455,7 +436,7 @@ def main(argv=None) -> int:
         log(f"  {t:<24} {counts[t]:>8} rows")
 
     log("creating pool views ...")
-    create_pool_views(db)
+    has_pool = create_pool_views(db)
 
     lineage = []
     for table, srcs in TABLE_FILES.items():
@@ -467,13 +448,13 @@ def main(argv=None) -> int:
     lineage += [("ref.concepts", "table", s, "table", "load:concepts")
                 for s in ["curated.conditions", "curated.medications", "curated.immunizations", "ref.lab_ranges"]]
     lineage.append(("ref.concepts", "table", f"file:{REF_DIR}/concept_synonyms.csv", "file", "load:concepts"))
-    for view, srcs in POOL_VIEW_SOURCES.items():
+    for view, srcs in (POOL_VIEW_SOURCES.items() if has_pool else []):
         lineage += [(view, "view", s, "table", "view:pool_views.sql") for s in srcs]
     add_lineage(db, lineage)
 
-    seq = audit_append(db, "loader", "data.loaded", "curated", {
+    seq = audit.append("loader", "data.loaded", "curated", {
         "dialect": db.dialect, "reset": args.reset, "tables": counts, "files": files,
-    })
+    }, db=db)
     log(f"audit data.loaded seq={seq}")
     log(f"done in {time.time() - t_start:.1f}s. Next: python ../data/seed_signal.py")
     return 0

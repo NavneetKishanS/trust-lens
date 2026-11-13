@@ -1,4 +1,7 @@
--- TrustLens schema (shared contract §6). Runs on DuckDB and Exasol via app.db.run_script.
+-- TrustLens schema (shared contract §6), Dev A. Runs on DuckDB and Exasol via app.db.run_script.
+-- gov and clinical tables are Dev B's: db/gov_schema.sql, db/clinical_schema.sql (app.schema.ensure_schema).
+-- Timestamps written by the API (submitted_at, reviewed_at, fetched_at, created_at) are ISO-8601 text,
+-- the same convention as Dev B's tables; Synthea timestamps in curated are real TIMESTAMP columns.
 -- Portable types only. Names that are reserved in Exasol (ref, text, section, state, low, high,
 -- transform) are quoted automatically by app/db.py on Exasol; keep them lowercase and unquoted here.
 -- Idempotent: CREATE ... IF NOT EXISTS. `python -m app.load --reset` drops all schemas first.
@@ -6,11 +9,9 @@
 CREATE SCHEMA IF NOT EXISTS raw;
 CREATE SCHEMA IF NOT EXISTS curated;
 CREATE SCHEMA IF NOT EXISTS ref;
-CREATE SCHEMA IF NOT EXISTS clinical;
 CREATE SCHEMA IF NOT EXISTS community;
 CREATE SCHEMA IF NOT EXISTS pool;
 CREATE SCHEMA IF NOT EXISTS research;
-CREATE SCHEMA IF NOT EXISTS gov;
 CREATE SCHEMA IF NOT EXISTS evals;
 
 -- ============================================================================================
@@ -187,44 +188,6 @@ CREATE TABLE IF NOT EXISTS ref.concepts (
 );
 
 -- ============================================================================================
--- clinical (Dev B writes)
--- ============================================================================================
-
-CREATE TABLE IF NOT EXISTS clinical.facts (
-    fact_id         VARCHAR(40) NOT NULL,
-    patient_id      VARCHAR(64) NOT NULL,
-    kind            VARCHAR(20),
-    data_json       VARCHAR(2000000),
-    source_row_ids  VARCHAR(4000),
-    computed_at     TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS clinical.summaries (
-    summary_id      VARCHAR(40) NOT NULL,
-    patient_id      VARCHAR(64) NOT NULL,
-    audience        VARCHAR(20),
-    overall_status  VARCHAR(20),
-    model           VARCHAR(100),
-    prompt_hash     VARCHAR(64),
-    created_at      TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS clinical.sentences (
-    sentence_id      VARCHAR(40) NOT NULL,
-    summary_id       VARCHAR(40) NOT NULL,
-    section          VARCHAR(100),
-    text             VARCHAR(4000),
-    fact_ids         VARCHAR(4000),
-    critic_status    VARCHAR(10),
-    critic_reasons   VARCHAR(4000),
-    verifier_status  VARCHAR(20),
-    verifier_reason  VARCHAR(4000),
-    review_status    VARCHAR(30),
-    reviewed_by      VARCHAR(100),
-    reviewed_at      TIMESTAMP
-);
-
--- ============================================================================================
 -- community (Dev B writes; seed_signal.py writes planted reports with origin='seed_signal')
 -- ============================================================================================
 
@@ -233,7 +196,7 @@ CREATE TABLE IF NOT EXISTS community.reports (
     patient_id    VARCHAR(64) NOT NULL,
     text          VARCHAR(4000),
     onset_date    DATE,
-    submitted_at  TIMESTAMP,
+    submitted_at  VARCHAR(40),
     origin        VARCHAR(20) DEFAULT 'patient'   -- 'patient' | 'seed_signal'
 );
 
@@ -249,7 +212,7 @@ CREATE TABLE IF NOT EXISTS community.symptoms (
     evidence_json   VARCHAR(20000),
     review_status   VARCHAR(20),     -- not_required | pending | approved | rejected
     reviewed_by     VARCHAR(100),
-    reviewed_at     TIMESTAMP
+    reviewed_at     VARCHAR(40)
 );
 
 -- ============================================================================================
@@ -266,7 +229,7 @@ CREATE TABLE IF NOT EXISTS research.papers (
     abstract_text  VARCHAR(2000000),
     source_url     VARCHAR(500),
     query          VARCHAR(1000),
-    fetched_at     TIMESTAMP
+    fetched_at     VARCHAR(40)
 );
 
 CREATE TABLE IF NOT EXISTS research.edges (
@@ -285,7 +248,7 @@ CREATE TABLE IF NOT EXISTS research.edges (
     pool_status         VARCHAR(20),
     pool_evidence_json  VARCHAR(20000),
     status              VARCHAR(20),
-    created_at          TIMESTAMP
+    created_at          VARCHAR(40)
 );
 
 CREATE TABLE IF NOT EXISTS research.citations (
@@ -305,46 +268,7 @@ CREATE TABLE IF NOT EXISTS research.asks (
     verdict           VARCHAR(20),
     summary_json      VARCHAR(2000000),
     mode              VARCHAR(20),
-    created_at        TIMESTAMP
-);
-
--- ============================================================================================
--- gov (Dev B writes through audit.py / lineage.py)
--- ============================================================================================
-
-CREATE TABLE IF NOT EXISTS gov.audit_events (
-    seq           INTEGER NOT NULL,
-    event_ts      TIMESTAMP,
-    actor         VARCHAR(200),
-    action_type   VARCHAR(50),
-    subject       VARCHAR(500),
-    payload_json  VARCHAR(2000000),
-    prev_hash     VARCHAR(64),
-    row_hash      VARCHAR(64)
-);
-
-CREATE TABLE IF NOT EXISTS gov.lineage_edges (
-    derived_id    VARCHAR(100) NOT NULL,
-    derived_type  VARCHAR(50),
-    source_id     VARCHAR(200),
-    source_type   VARCHAR(50),
-    transform     VARCHAR(100),
-    agent         VARCHAR(50),
-    model         VARCHAR(100),
-    prompt_hash   VARCHAR(64),
-    created_at    TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS gov.llm_calls (
-    call_id      VARCHAR(40) NOT NULL,
-    purpose      VARCHAR(50),
-    model        VARCHAR(100),
-    prompt_hash  VARCHAR(64),
-    input_hash   VARCHAR(64),
-    stop_reason  VARCHAR(50),
-    latency_ms   INTEGER,
-    ok           BOOLEAN,
-    created_at   TIMESTAMP
+    created_at        VARCHAR(40)
 );
 
 -- ============================================================================================
@@ -363,5 +287,5 @@ CREATE TABLE IF NOT EXISTS evals.runs (
     metric_name   VARCHAR(100),
     metric_value  DOUBLE,
     detail_json   VARCHAR(2000000),
-    created_at    TIMESTAMP
+    created_at    VARCHAR(40)
 );

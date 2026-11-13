@@ -1,70 +1,88 @@
--- TrustLens per-patient facts (Dev A). Shared contract §6 clinical.facts, Dev A context §8.
+-- TrustLens per-patient facts (Dev A). Shared §6 clinical.facts; Dev A context §8.
 --
--- Each '-- name: <block>' is one SELECT with parameter :patient_id. Every row is one fact:
+-- Each '-- name: <kind>' block is one SELECT. Every placeholder is the patient_id (the caller passes it once per
+-- placeholder, so never write a question mark in these comments). Every row is one fact:
 --   kind            LAB_TREND | CONDITION | MEDICATION | IMMUNIZATION | ENCOUNTER | CAREPLAN | ALLERGY | NEXT_STEP
 --   source_row_ids  comma-separated curated row IDs the fact was computed from
---   all other columns are the fact's data. A double underscore nests: latest__value -> {"latest": {"value": ...}}.
---   NULL values are dropped; a nested object whose fields are all NULL becomes null.
--- app/factsql.py runs the blocks and packs the data columns into data_json (Exasol has no JSON constructor,
--- so building JSON in SQL would not be portable).
+--   every other column is fact data; a double underscore nests (latest__value -> {"latest": {"value": ...}}).
+--   NULL scalars stay as null, except opt_<name> columns, which become <name> and are left out when NULL.
+--   A nested object whose fields are all NULL becomes null.
+--   columns named sort_* only order the rows and are not part of the data.
+-- app/factsql.py packs the data columns into data_json (Exasol has no JSON constructor, so building JSON in SQL
+-- would not be portable). The data keys match the Python builders in app/clinical/facts.py, which the
+-- templates and the critic read.
 --
--- Numbers are rounded here the way they should be written: integers for mg/dL, otherwise 1 decimal.
--- Dates are 'YYYY-MM-DD'. "Today" is CURRENT_DATE. Lab ranges are demo ranges, not clinical advice.
--- Portable SQL only (DuckDB + Exasol): no vendor functions, no '' (Exasol treats it as NULL).
+-- Rounding is done here, the way a sentence may write it: 1 decimal, integers without '.0'.
+-- "Today" for a patient = the date of their latest encounter or observation (Synthea records end at generation).
+-- Lab ranges are demo ranges, not clinical advice. Portable SQL only: no vendor functions, no '' literals.
 
 
 -- name: lab_trend
--- Per LOINC in ref.lab_ranges: latest and previous value, flag vs range, direction. Sources: both OBS rows.
+-- Per LOINC in ref.lab_ranges (same units): latest value and the latest value from an earlier day, each
+-- flagged against the range. Out-of-range results first, then newest first. Sources: both OBS rows.
 WITH obs AS (
-    SELECT o.row_id, o.concept_code, o.obs_date,
+    SELECT o.row_id, o.concept_code, o.value_num, o.obs_date AS obs_ts, CAST(o.obs_date AS DATE) AS obs_day,
            r.name, r.units, r.low, r.high, r.plain_name,
-           CASE WHEN r.units = 'mg/dL' THEN ROUND(o.value_num, 0) ELSE ROUND(o.value_num, 1) END AS value_r,
-           ROW_NUMBER() OVER (PARTITION BY o.concept_code ORDER BY o.obs_date DESC, o.row_id DESC) AS rn
+           ROW_NUMBER() OVER (PARTITION BY o.concept_code ORDER BY o.obs_date DESC, o.row_id) AS rn
     FROM curated.observations o
     JOIN ref.lab_ranges r ON r.loinc = o.concept_code AND r.units = o.units
-    WHERE o.patient_id = :patient_id
+    WHERE o.patient_id = ?
       AND o.value_num IS NOT NULL
 ),
-flagged AS (
-    SELECT row_id, concept_code, obs_date, name, units, low, high, plain_name, value_r, rn,
-           CASE WHEN value_r < low THEN 'LOW' WHEN value_r > high THEN 'HIGH' ELSE 'NORMAL' END AS flag
-    FROM obs
-    WHERE rn <= 2
+latest AS (
+    SELECT * FROM obs WHERE rn = 1
+),
+previous AS (
+    SELECT o.row_id, o.concept_code, o.value_num, o.obs_day, o.low, o.high,
+           ROW_NUMBER() OVER (PARTITION BY o.concept_code ORDER BY o.obs_day DESC, o.rn) AS rn2
+    FROM obs o
+    JOIN latest l ON l.concept_code = o.concept_code
+    WHERE o.obs_day < l.obs_day
 )
-SELECT 'LAB_TREND'                                   AS kind,
-       l.concept_code                                AS loinc,
-       l.name                                        AS name,
-       l.units                                       AS units,
-       l.plain_name                                  AS plain_name,
-       CASE WHEN l.low > 0 THEN l.low END            AS range__low,    -- 0 = no lower limit
-       CASE WHEN l.high < 999 THEN l.high END        AS range__high,   -- 999 = no upper limit
-       l.value_r                                     AS latest__value,
-       CAST(l.obs_date AS VARCHAR(10))               AS latest__date,
-       l.flag                                        AS latest__flag,
-       p.value_r                                     AS previous__value,
-       CAST(p.obs_date AS VARCHAR(10))               AS previous__date,
-       p.flag                                        AS previous__flag,
+SELECT 'LAB_TREND'                                AS kind,
+       l.concept_code                             AS loinc,
+       l.name                                     AS name,
+       l.plain_name                               AS plain_name,
+       l.units                                    AS units,
+       l.low                                      AS usual_range__low,
+       l.high                                     AS usual_range__high,
+       ROUND(l.value_num, 1)                      AS latest__value,
+       CAST(l.obs_day AS VARCHAR(10))             AS latest__date,
+       CASE WHEN l.value_num < l.low THEN 'LOW' WHEN l.value_num > l.high THEN 'HIGH' ELSE 'NORMAL' END
+                                                  AS latest__flag,
+       ROUND(p.value_num, 1)                      AS previous__value,
+       CAST(p.obs_day AS VARCHAR(10))             AS previous__date,
        CASE WHEN p.row_id IS NULL THEN NULL
-            WHEN l.value_r > p.value_r THEN 'up'
-            WHEN l.value_r < p.value_r THEN 'down'
-            ELSE 'same' END                          AS direction,
+            WHEN p.value_num < p.low THEN 'LOW' WHEN p.value_num > p.high THEN 'HIGH' ELSE 'NORMAL' END
+                                                  AS previous__flag,
+       CASE WHEN p.row_id IS NULL THEN NULL
+            WHEN ROUND(l.value_num, 1) > ROUND(p.value_num, 1) THEN 'up'
+            WHEN ROUND(l.value_num, 1) < ROUND(p.value_num, 1) THEN 'down'
+            ELSE 'same' END                       AS opt_direction,
        CASE WHEN p.row_id IS NULL THEN l.row_id ELSE l.row_id || ',' || p.row_id END AS source_row_ids
-FROM flagged l
-LEFT JOIN flagged p ON p.concept_code = l.concept_code AND p.rn = 2
-WHERE l.rn = 1
-ORDER BY l.concept_code;
+FROM latest l
+LEFT JOIN previous p ON p.concept_code = l.concept_code AND p.rn2 = 1
+ORDER BY CASE WHEN l.value_num < l.low OR l.value_num > l.high THEN 0 ELSE 1 END, l.obs_day DESC, l.obs_ts DESC, l.row_id;
 
 
 -- name: condition
--- Active conditions (no stop date) and conditions resolved in the last 2 years, one fact per code
--- (latest episode). Social-circumstance findings Synthea records as conditions (employment, education,
--- housing, ...) are left out; they are not clinical problems. Physician view only.
-WITH c AS (
-    SELECT row_id, concept_code, code_system, description, start_date, stop_date,
+-- Active conditions and conditions resolved in the last 2 years, one fact per code (latest episode),
+-- active first. Social-circumstance findings that Synthea stores as conditions (employment, education,
+-- housing, ...) are left out because they are not clinical problems. Physician view only.
+WITH ref_day AS (
+    SELECT COALESCE(MAX(d), CURRENT_DATE) AS d FROM (
+        SELECT MAX(CAST(start_ts AS DATE)) AS d FROM curated.encounters WHERE patient_id = ?
+        UNION ALL
+        SELECT MAX(CAST(obs_date AS DATE)) AS d FROM curated.observations WHERE patient_id = ?
+    ) x
+),
+c AS (
+    SELECT row_id, code_system, concept_code, description, start_date, stop_date,
            ROW_NUMBER() OVER (PARTITION BY concept_code ORDER BY start_date DESC, row_id DESC) AS rn
     FROM curated.conditions
-    WHERE patient_id = :patient_id
-      AND (stop_date IS NULL OR stop_date >= CURRENT_DATE - 730)
+    CROSS JOIN ref_day
+    WHERE patient_id = ?
+      AND (stop_date IS NULL OR stop_date >= ref_day.d - 730)
       AND description NOT LIKE '%employment%'
       AND description NOT LIKE '%labor force%'
       AND description NOT LIKE 'Unemployed%'
@@ -86,174 +104,187 @@ WITH c AS (
       AND description NOT LIKE 'Medication review due%'
       AND description NOT LIKE '%dental filling%'
 )
-SELECT 'CONDITION'                              AS kind,
-       code_system                              AS code_system,
-       concept_code                             AS snomed,
-       description                              AS description,
-       CAST(start_date AS VARCHAR(10))          AS onset_date,
-       CAST(stop_date AS VARCHAR(10))           AS stop_date,
-       CASE WHEN stop_date IS NULL THEN 'active' ELSE 'resolved' END AS status,
-       row_id                                   AS source_row_ids
+SELECT 'CONDITION'                                AS kind,
+       COALESCE(code_system, 'SNOMED')            AS code_system,
+       concept_code                               AS code,
+       description                                AS description,
+       CAST(start_date AS VARCHAR(10))            AS onset,
+       CAST(stop_date AS VARCHAR(10))             AS resolved,
+       CASE WHEN stop_date IS NULL THEN TRUE ELSE FALSE END AS active,
+       row_id                                     AS source_row_ids
 FROM c
 WHERE rn = 1
-ORDER BY CASE WHEN stop_date IS NULL THEN 0 ELSE 1 END, start_date DESC;
+ORDER BY CASE WHEN stop_date IS NULL THEN 0 ELSE 1 END, start_date DESC, row_id;
 
 
 -- name: medication
 -- Active medications plus medications started or stopped in the last 12 months, one fact per RxNorm code
--- (latest prescription).
-WITH m AS (
-    SELECT row_id, concept_code, description, reason_code, reason_description,
-           CAST(start_ts AS DATE) AS start_date, CAST(stop_ts AS DATE) AS stop_date,
-           ROW_NUMBER() OVER (PARTITION BY concept_code ORDER BY start_ts DESC, row_id DESC) AS rn
+-- (latest prescription), newest first.
+WITH ref_day AS (
+    SELECT COALESCE(MAX(d), CURRENT_DATE) AS d FROM (
+        SELECT MAX(CAST(start_ts AS DATE)) AS d FROM curated.encounters WHERE patient_id = ?
+        UNION ALL
+        SELECT MAX(CAST(obs_date AS DATE)) AS d FROM curated.observations WHERE patient_id = ?
+    ) x
+),
+m AS (
+    SELECT row_id, concept_code, description, reason_description, start_ts,
+           CAST(start_ts AS DATE) AS start_day, CAST(stop_ts AS DATE) AS stop_day,
+           ROW_NUMBER() OVER (PARTITION BY concept_code ORDER BY start_ts DESC, row_id) AS rn
     FROM curated.medications
-    WHERE patient_id = :patient_id
+    CROSS JOIN ref_day
+    WHERE patient_id = ?
       AND (stop_ts IS NULL
-           OR CAST(start_ts AS DATE) >= CURRENT_DATE - 365
-           OR CAST(stop_ts AS DATE) >= CURRENT_DATE - 365)
+           OR CAST(start_ts AS DATE) >= ref_day.d - 365
+           OR CAST(stop_ts AS DATE) >= ref_day.d - 365)
 )
-SELECT 'MEDICATION'                             AS kind,
-       concept_code                             AS rxnorm,
-       description                              AS description,
-       CAST(start_date AS VARCHAR(10))          AS start_date,
-       CAST(stop_date AS VARCHAR(10))           AS stop_date,
-       CASE WHEN stop_date IS NULL THEN 'active' ELSE 'stopped' END AS status,
-       reason_code                              AS reason__code,
-       reason_description                       AS reason__description,
-       row_id                                   AS source_row_ids
+SELECT 'MEDICATION'                               AS kind,
+       'RxNorm'                                   AS code_system,
+       concept_code                               AS code,
+       description                                AS description,
+       CASE WHEN stop_day IS NULL THEN 'active' ELSE 'stopped' END AS status,
+       CAST(start_day AS VARCHAR(10))             AS started,
+       CAST(stop_day AS VARCHAR(10))              AS stopped,
+       reason_description                         AS reason,
+       row_id                                     AS source_row_ids
 FROM m
 WHERE rn = 1
-ORDER BY CASE WHEN stop_date IS NULL THEN 0 ELSE 1 END, start_date DESC;
+ORDER BY start_ts DESC, row_id;
 
 
 -- name: immunization
--- Immunizations in the last 24 months, one fact per dose. product_name is the short brand name we keep
--- in ref.known_effects (e.g. Moderna), when we have one.
-SELECT 'IMMUNIZATION'                           AS kind,
-       i.concept_code                           AS cvx,
-       i.description                            AS description,
-       k.product_name                           AS product_name,
-       CAST(i.imm_date AS VARCHAR(10))          AS imm_date,
-       i.row_id                                 AS source_row_ids
+-- Immunizations in the last 24 months, one fact per dose, newest first.
+WITH ref_day AS (
+    SELECT COALESCE(MAX(d), CURRENT_DATE) AS d FROM (
+        SELECT MAX(CAST(start_ts AS DATE)) AS d FROM curated.encounters WHERE patient_id = ?
+        UNION ALL
+        SELECT MAX(CAST(obs_date AS DATE)) AS d FROM curated.observations WHERE patient_id = ?
+    ) x
+)
+SELECT 'IMMUNIZATION'                             AS kind,
+       'CVX'                                      AS code_system,
+       i.concept_code                             AS code,
+       i.description                              AS description,
+       CAST(CAST(i.imm_date AS DATE) AS VARCHAR(10)) AS "date",
+       CASE WHEN i.concept_code IN ('207', '208', '210', '212', '213', '217', '218', '219', '221', '228', '229', '300')
+            THEN TRUE ELSE FALSE END              AS covid_vaccine,
+       i.row_id                                   AS source_row_ids
 FROM curated.immunizations i
-LEFT JOIN (SELECT product_code, MIN(product_name) AS product_name
-           FROM ref.known_effects WHERE product_system = 'CVX' GROUP BY product_code) k
-       ON k.product_code = i.concept_code
-WHERE i.patient_id = :patient_id
-  AND i.imm_date >= CURRENT_DATE - 730
-ORDER BY i.imm_date DESC, i.row_id DESC;
+CROSS JOIN ref_day
+WHERE i.patient_id = ?
+  AND CAST(i.imm_date AS DATE) >= ref_day.d - 730
+ORDER BY i.imm_date DESC, i.row_id;
 
 
 -- name: encounter
--- The last 5 encounters.
+-- The last 5 encounters, newest first.
 WITH e AS (
-    SELECT row_id, start_ts, encounter_class, concept_code, description, reason_code, reason_description,
+    SELECT row_id, start_ts, encounter_class, concept_code, description, reason_description,
            provider_name, organization_name,
-           ROW_NUMBER() OVER (ORDER BY start_ts DESC, row_id DESC) AS rn
+           ROW_NUMBER() OVER (ORDER BY start_ts DESC, row_id) AS rn
     FROM curated.encounters
-    WHERE patient_id = :patient_id
+    WHERE patient_id = ?
 )
-SELECT 'ENCOUNTER'                              AS kind,
-       CAST(CAST(start_ts AS DATE) AS VARCHAR(10)) AS encounter_date,
-       encounter_class                          AS encounter_class,
-       concept_code                             AS snomed,
-       description                              AS description,
-       reason_code                              AS reason__code,
-       reason_description                       AS reason__description,
-       provider_name                            AS provider_name,
-       organization_name                        AS organization_name,
-       row_id                                   AS source_row_ids
+SELECT 'ENCOUNTER'                                AS kind,
+       CAST(CAST(start_ts AS DATE) AS VARCHAR(10)) AS "date",
+       encounter_class                            AS encounter_class,
+       concept_code                               AS code,
+       description                                AS description,
+       reason_description                         AS reason,
+       provider_name                              AS provider,
+       organization_name                          AS organization,
+       row_id                                     AS source_row_ids
 FROM e
 WHERE rn <= 5
 ORDER BY rn;
 
 
 -- name: careplan
--- Active care plans, with the provider of the encounter that started them. Sources: CPL + ENC rows.
-SELECT 'CAREPLAN'                               AS kind,
-       c.concept_code                           AS snomed,
-       c.description                            AS description,
-       CAST(c.start_date AS VARCHAR(10))        AS start_date,
-       c.reason_code                            AS reason__code,
-       c.reason_description                     AS reason__description,
-       e.provider_name                          AS provider_name,
-       e.organization_name                      AS organization_name,
+-- Active care plans with the provider of the encounter that started them, newest first. Sources: CPL + ENC.
+SELECT 'CAREPLAN'                                 AS kind,
+       'SNOMED'                                   AS code_system,
+       c.concept_code                             AS code,
+       c.description                              AS description,
+       CAST(c.start_date AS VARCHAR(10))          AS started,
+       c.reason_description                       AS reason,
+       e.provider_name                            AS provider,
+       e.organization_name                        AS organization,
        CASE WHEN e.row_id IS NULL THEN c.row_id ELSE c.row_id || ',' || e.row_id END AS source_row_ids
 FROM curated.careplans c
 LEFT JOIN curated.encounters e ON e.encounter_id = c.encounter_id
-WHERE c.patient_id = :patient_id
+WHERE c.patient_id = ?
   AND c.stop_date IS NULL
 ORDER BY c.start_date DESC, c.row_id;
 
 
 -- name: allergy
--- Active allergies.
-SELECT 'ALLERGY'                                AS kind,
-       concept_code                             AS concept_code,
-       description                              AS description,
-       category                                 AS category,
-       CAST(start_date AS VARCHAR(10))          AS start_date,
-       row_id                                   AS source_row_ids
+-- Active allergies, newest first.
+SELECT 'ALLERGY'                                  AS kind,
+       'SNOMED'                                   AS code_system,
+       concept_code                               AS code,
+       description                                AS description,
+       category                                   AS category,
+       CAST(start_date AS VARCHAR(10))            AS since,
+       row_id                                     AS source_row_ids
 FROM curated.allergies
-WHERE patient_id = :patient_id
+WHERE patient_id = ?
   AND stop_date IS NULL
 ORDER BY start_date DESC, row_id;
 
 
 -- name: next_step
--- Rules only, no LLM:
---   CAREPLAN     every active care plan -> "Care plan <X> with <provider>"
---   DISCUSS_LAB  latest value of a lab is HIGH or LOW and the patient has had no encounter since
---                -> "Talk to your care team about your <plain_name> result from <month>"
-WITH lab AS (
-    SELECT o.row_id, o.concept_code, o.obs_date, r.units, r.low, r.high, r.plain_name,
-           CASE WHEN r.units = 'mg/dL' THEN ROUND(o.value_num, 0) ELSE ROUND(o.value_num, 1) END AS value_r,
-           ROW_NUMBER() OVER (PARTITION BY o.concept_code ORDER BY o.obs_date DESC, o.row_id DESC) AS rn
+-- Rules only; the text is fixed here so the LLM can't turn it into advice.
+--   out_of_range_lab_without_later_visit: the latest value of a lab is out of range and there is no visit
+--       after that day -> "Talk to your care team about your <plain_name> result from <Month YYYY>."
+--   active_care_plan: every active care plan -> "Keep following your care plan "<X>" with <provider>."
+WITH obs AS (
+    SELECT o.row_id, o.concept_code, o.value_num, o.obs_date AS obs_ts, CAST(o.obs_date AS DATE) AS obs_day,
+           r.low, r.high, r.plain_name,
+           ROW_NUMBER() OVER (PARTITION BY o.concept_code ORDER BY o.obs_date DESC, o.row_id) AS rn
     FROM curated.observations o
     JOIN ref.lab_ranges r ON r.loinc = o.concept_code AND r.units = o.units
-    WHERE o.patient_id = :patient_id
+    WHERE o.patient_id = ?
       AND o.value_num IS NOT NULL
 ),
-latest_flagged AS (
-    SELECT row_id, concept_code, obs_date, units, plain_name, value_r,
-           CASE WHEN value_r < low THEN 'LOW' WHEN value_r > high THEN 'HIGH' END AS flag
-    FROM lab
-    WHERE rn = 1 AND (value_r < low OR value_r > high)
+last_visit AS (
+    SELECT MAX(CAST(start_ts AS DATE)) AS d FROM curated.encounters WHERE patient_id = ?
+),
+lab AS (
+    SELECT o.row_id, o.concept_code, o.obs_ts, o.obs_day, o.plain_name,
+           CASE EXTRACT(MONTH FROM o.obs_day)
+                WHEN 1 THEN 'January' WHEN 2 THEN 'February' WHEN 3 THEN 'March' WHEN 4 THEN 'April'
+                WHEN 5 THEN 'May' WHEN 6 THEN 'June' WHEN 7 THEN 'July' WHEN 8 THEN 'August'
+                WHEN 9 THEN 'September' WHEN 10 THEN 'October' WHEN 11 THEN 'November' ELSE 'December' END
+           || ' ' || CAST(EXTRACT(YEAR FROM o.obs_day) AS VARCHAR(4)) AS month_text
+    FROM obs o
+    CROSS JOIN last_visit v
+    WHERE o.rn = 1
+      AND (o.value_num < o.low OR o.value_num > o.high)
+      AND (v.d IS NULL OR v.d <= o.obs_day)
 )
-SELECT 'NEXT_STEP'                              AS kind,
-       'CAREPLAN'                               AS rule_name,
-       c.description                            AS careplan__description,
-       CAST(c.start_date AS VARCHAR(10))        AS careplan__start_date,
-       e.provider_name                          AS careplan__provider_name,
-       e.organization_name                      AS careplan__organization_name,
-       CAST(NULL AS VARCHAR(20))                AS lab__loinc,
-       CAST(NULL AS VARCHAR(100))               AS lab__plain_name,
-       CAST(NULL AS DOUBLE)                     AS lab__value,
-       CAST(NULL AS VARCHAR(50))                AS lab__units,
-       CAST(NULL AS VARCHAR(10))                AS lab__flag,
-       CAST(NULL AS VARCHAR(10))                AS lab__date,
-       CASE WHEN e.row_id IS NULL THEN c.row_id ELSE c.row_id || ',' || e.row_id END AS source_row_ids
+SELECT 'NEXT_STEP'                                AS kind,
+       'out_of_range_lab_without_later_visit'     AS rule,
+       CAST(obs_day AS VARCHAR(10))               AS "date",
+       'Talk to your care team about your ' || plain_name || ' result from ' || month_text || '.' AS text,
+       row_id                                     AS source_row_ids,
+       0                                          AS sort_group,
+       CAST(obs_day AS VARCHAR(10))               AS sort_day,
+       CAST(obs_ts AS VARCHAR(30))                AS sort_ts,
+       row_id                                     AS sort_key
+FROM lab
+UNION ALL
+SELECT 'NEXT_STEP'                                AS kind,
+       'active_care_plan'                         AS rule,
+       CAST(c.start_date AS VARCHAR(10))          AS "date",
+       'Keep following your care plan "' || c.description || '"'
+           || CASE WHEN e.provider_name IS NULL THEN '.' ELSE ' with ' || e.provider_name || '.' END AS text,
+       CASE WHEN e.row_id IS NULL THEN c.row_id ELSE c.row_id || ',' || e.row_id END AS source_row_ids,
+       1                                          AS sort_group,
+       CAST(c.start_date AS VARCHAR(10))          AS sort_day,
+       CAST(c.start_date AS VARCHAR(30))          AS sort_ts,
+       c.row_id                                   AS sort_key
 FROM curated.careplans c
 LEFT JOIN curated.encounters e ON e.encounter_id = c.encounter_id
-WHERE c.patient_id = :patient_id
+WHERE c.patient_id = ?
   AND c.stop_date IS NULL
-UNION ALL
-SELECT 'NEXT_STEP'                              AS kind,
-       'DISCUSS_LAB'                            AS rule_name,
-       CAST(NULL AS VARCHAR(500))               AS careplan__description,
-       CAST(NULL AS VARCHAR(10))                AS careplan__start_date,
-       CAST(NULL AS VARCHAR(200))               AS careplan__provider_name,
-       CAST(NULL AS VARCHAR(200))               AS careplan__organization_name,
-       l.concept_code                           AS lab__loinc,
-       l.plain_name                             AS lab__plain_name,
-       l.value_r                                AS lab__value,
-       l.units                                  AS lab__units,
-       l.flag                                   AS lab__flag,
-       CAST(l.obs_date AS VARCHAR(10))          AS lab__date,
-       l.row_id                                 AS source_row_ids
-FROM latest_flagged l
-WHERE NOT EXISTS (
-    SELECT 1 FROM curated.encounters e2
-    WHERE e2.patient_id = :patient_id
-      AND CAST(e2.start_ts AS DATE) > l.obs_date
-);
+ORDER BY sort_group, sort_day DESC, sort_ts DESC, sort_key;
