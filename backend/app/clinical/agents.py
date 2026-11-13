@@ -44,7 +44,7 @@ def generate(audience: str, facts: list[dict]) -> llm.LLMResult[GenOut]:
     return llm.call(
         purpose=f"summary.generate.{audience}", prompt_file=f"summary_{audience}.md",
         variables={"sections": ", ".join(sections), "facts": _compact(facts)},
-        output_model=GenOut, stub=lambda: _stub_generate(audience, facts), effort="medium",
+        output_model=GenOut, stub=lambda: _stub_generate(audience, facts), effort="low",
     )
 
 

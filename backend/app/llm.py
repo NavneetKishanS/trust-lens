@@ -8,7 +8,8 @@
 Providers (LLM_PROVIDER):
   stub       deterministic: returns stub() (default; the demo must always work)
   anthropic  Claude API, claude-opus-5-5, server-side refusal fallbacks enabled
-  bedrock    Amazon Bedrock Mantle client in eu-central-1, anthropic.claude-opus-5-5
+  bedrock    Amazon Bedrock in AWS_REGION. BEDROCK_CLIENT=runtime (default; classic bedrock-runtime, inference profile
+             BEDROCK_MODEL_ID, default us.anthropic.claude-opus-5-5) or mantle (Messages-API endpoint, anthropic.claude-opus-5-5)
 
 Opus 5.5 notes: thinking is always on (never send thinking={"type": "disabled"}); depth is
 output_config.effort; no assistant prefill; no forced tool_choice. Structured output via messages.parse.
@@ -32,7 +33,7 @@ from .db import DB, get_db
 
 T = TypeVar("T", bound=BaseModel)
 
-MODEL_IDS = {"anthropic": "claude-opus-5-5", "bedrock": "anthropic.claude-opus-5-5", "stub": "stub"}
+MODEL_IDS = {"anthropic": "claude-opus-5-5", "bedrock": config.BEDROCK_MODEL_ID, "stub": "stub"}
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
@@ -76,7 +77,10 @@ def _get_client():
     global _client
     if _client is None:
         if provider() == "bedrock":
-            _client = anthropic.AnthropicBedrockMantle(aws_region=config.AWS_REGION)
+            if config.BEDROCK_CLIENT == "mantle":
+                _client = anthropic.AnthropicBedrockMantle(aws_region=config.AWS_REGION)
+            else:
+                _client = anthropic.AnthropicBedrock(aws_region=config.AWS_REGION)
         else:
             _client = anthropic.Anthropic()
     return _client

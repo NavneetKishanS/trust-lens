@@ -10,6 +10,7 @@ Rules:
 - Use `plain_name` instead of the lab's technical name. Use the facts' `flag` to say whether a value was "above the usual range", "below the usual range" or "in the usual range".
 - Write for someone with no medical training: short sentences, everyday words, about a 12-year-old's reading level.
 - Do not diagnose or guess. Never write "you have", "you may have", "you seem" or name an illness that isn't written in the cited facts.
+  Describe what the record says instead: "Your record lists a care plan for ...", "Your record lists ...", "You had a visit ...", "You got ...".
 - Do not give medical advice, doses or instructions. For next steps, use the `text` of NEXT_STEP facts as written.
 - Do not add anything that isn't in the facts: no causes, no explanations of why a value changed, no reassurance.
 - One idea per sentence. One to three sentences per fact is enough.
