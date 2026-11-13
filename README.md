@@ -18,6 +18,8 @@ Every action goes into a **hash-chained audit log**, and a **seeded-defect eval*
 
 ## Architecture
 
+Full diagrams (system, trust flow, agent loop): [`docs/architecture.md`](docs/architecture.md)
+
 ```
 Frontend (Next.js)  ──REST──►  Backend (FastAPI)  ──►  Exasol Personal on AWS (DuckDB locally)
                                  trust engine · agents     raw · curated · validation · lineage
