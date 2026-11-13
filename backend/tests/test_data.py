@@ -208,3 +208,25 @@ def test_symptom_loop_reaches_pool_views(pool_db):
     assert pool.rare_cases() == {"k": 5, "items": [{
         "term": "blurred vision", "exposure_label": "Moderna (CVX 207)", "age_band": "50-59", "sex": "F",
         "n_reports": "<5", "first_month": "2026-10"}]}
+
+
+# ---------- seed_signal (A5) ----------
+def _seed_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("seed_signal", config.REPO_ROOT / "data" / "seed_signal.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_seed_phrases_map_to_the_vocabulary():
+    seed = _seed_module()
+    vocab = {r["term"]: {s.strip().lower() for s in r["synonyms"].split(";")}
+             for r in csv.DictReader(open(config.REPO_ROOT / "db/ref/symptom_vocab.csv", encoding="utf-8"))}
+    for term, phrases in seed.PHRASES.items():
+        assert term in vocab, term
+        assert all(p.lower() in vocab[term] for p in phrases), term
+    assert set(seed.EXPECTED_WEIGHTS) <= set(seed.PHRASES)
+    assert len(seed.UNSAFE_QUESTIONS) == 5 and seed._band(95) == "90+" and seed._band(47) == "40-49"
+    assert "NEW" not in [t for t, _ in seed.PL3_NEW]

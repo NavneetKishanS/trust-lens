@@ -31,7 +31,7 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 - [x] `db/pool_views.sql` + `db/pool_schema.md` (A, H6)
 - [x] Symptom intake: extract → map → classify (B)
 - [x] Review queue + decisions (B)
-- [ ] `data/seed_signal.py`: PL2 signal, PL3 reports, PL4 unsafe questions (A, H7)
+- [x] `data/seed_signal.py`: PL2 signal, PL3 reports, PL4 unsafe questions (A, H7)
 
 **Exit:** "tired, headache and blurred vision" after CVX 207 → 2 EXPECTED + 1 NEW pending → approve → `/pool/rare` lists blurred vision as `"<5"`.
 
