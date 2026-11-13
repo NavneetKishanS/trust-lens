@@ -47,6 +47,17 @@ python3.12 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Until the Synthea load lands, `cd backend && ../.venv/bin/python -m app.devdata` adds 3 labelled dev-fixture patients so the summary endpoints work. Responses with the header
 `X-TrustLens-Stub: true` still return contract-shaped example data; `/health`, `/audit`, `/audit/verify` and `/lineage/{id}` are live.
 
+### Research engine (Dev C)
+
+```bash
+cd backend
+../.venv/bin/python -m app.research.papers              # fetch + cache Europe PMC papers (data/papers/, git-ignored)
+../.venv/bin/python -m app.research.papers --offline    # reload from the cache only
+../.venv/bin/python -m app.research.devpool             # DEV ONLY: stand-in pool.* tables until db/pool_views.sql exists
+```
+Then in Swagger: `POST /research/graph/build`, and try the questions from `GET /research/ask/templates`.
+Before Dev A's `python -m app.load --reset`, run `python -m app.research.devpool --drop`.
+
 ## Data
 
 All patient data is **synthetic** (Synthea). The research signal used in the demo is planted on purpose and labelled as such.
