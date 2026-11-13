@@ -11,7 +11,7 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 - [x] FastAPI skeleton, all §7 routes return stub shapes (B)
 - [x] `llm.py` with stub / anthropic / bedrock; `gov.llm_calls` (B)
 - [x] `audit.py` + `lineage.py`; `/audit`, `/audit/verify`, `/lineage/{id}` (B)
-- [ ] Europe PMC fetch script started, caching JSON (C)
+- [x] Europe PMC fetch script started, caching JSON (C)
 - [ ] Shared `ANON_SALT` agreed, `.env` on every laptop (all)
 
 **Exit:** `/health` → db + llm + patient count; `data.loaded` is in the audit log and `/audit/verify` is valid.
@@ -37,13 +37,13 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 
 ## M3 Researcher core · H2–H11
 
-- [ ] ≥ 50 papers in `research.papers`, offline cache (C, H4)
-- [ ] Ask the data: templates + guard + k-anon + sufficiency (C, H6)
-- [ ] Ask the data: LLM text-to-SQL + cited summary (C, H8)
+- [x] ≥ 50 papers in `research.papers`, offline cache (C, H4) — 332 papers, 729 citation links
+- [x] Ask the data: templates + guard + k-anon + sufficiency (C, H6)
+- [x] Ask the data: LLM text-to-SQL + cited summary (C, H8) — tested with a fake LLM; not yet run against live Claude
 - [ ] `ref.concepts` with synonyms (A, H7)
-- [ ] A1 establish + A2 critic + citation edges (C, H9)
+- [x] A1 establish + A2 critic + citation edges (C, H9)
 - [ ] `exposure_outcome_rate` pool SQL (A, H9)
-- [ ] A3 sanity: literature + pool (C, H11)
+- [x] A3 sanity: literature + pool (C, H11) — uses a fallback `exposure_outcome_rate` until Dev A's lands
 - [ ] Exasol live with everything; DuckDB still works (A, H10)
 
 **Exit:** 5 demo questions answered with SQL + verdict; 5 unsafe ones blocked; `/research/graph?concept=CVX:207` returns cited edges with sanity labels; PL5 fabricated quote rejected.
