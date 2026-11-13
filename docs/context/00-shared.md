@@ -243,7 +243,8 @@ Every write endpoint returns `audit_seq`.
 - `GET /lineage/{id}` → `{"id":"SEN-...","type":"sentence","chain":[{"id":"FCT-...","type":"fact","transform":"facts.sql:lab_trend","agent":null,"model":null,"prompt_hash":null,"depth":1},{"id":"OBS-0004411","type":"curated.observations","transform":"load:synthea","depth":2}],"producer":{"agent":"generator","model":"...","prompt_hash":"..."}}`
 - `GET /audit?limit=100` → `[{"seq":1,"event_ts":"...","actor":"...","action_type":"...","subject":"...","payload":{},"prev_hash":"...","row_hash":"..."}]`
 - `GET /audit/verify` → `{"valid":true,"length":57,"broken_at":null}`
-- `GET /evals/latest` (M5) → `{"metrics":[{"name":"injected_error_catch_rate","value":1.0}],"details":[...]}`
+- `POST /evals/run?patients=10` → runs every metric, stores one row per metric in `evals.runs`, audits `eval.completed`; same shape as below plus `audit_seq`. Summary metrics run the pipeline without persisting (no review-queue items).
+- `GET /evals/latest` → `{"eval_id":"EVAL-...","created_at":"...","metrics":[{"name":"injected_error_catch_rate","value":1.0},{"name":"sentence_support_rate","value":0.97},{"name":"symptom_classification_accuracy","value":1.0},{"name":"unsafe_query_block_rate","value":1.0},{"name":"fabricated_quote_rejected","value":1.0},{"name":"audit_chain_valid","value":1.0}],"details":[{"name":"...", ...}]}`. `value` is null when a metric couldn't be measured; its detail has a `note` saying why
 
 ## 8. Decision rules (deterministic; the LLM never decides)
 

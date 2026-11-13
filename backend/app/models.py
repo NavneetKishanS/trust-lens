@@ -293,5 +293,8 @@ class EvalMetric(BaseModel):
 
 
 class Evals(BaseModel):
+    eval_id: Optional[str] = None
+    created_at: Optional[str] = None
     metrics: list[EvalMetric]
     details: list[dict[str, Any]]
+    audit_seq: Optional[int] = None
