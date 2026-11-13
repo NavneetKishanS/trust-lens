@@ -245,6 +245,9 @@ def create_schema(db: Database, reset: bool) -> None:
             db.execute(f"DROP SCHEMA IF EXISTS {s} CASCADE")
         log(f"dropped schemas: {', '.join(SCHEMAS)}")
     db.run_script(SCHEMA_SQL)
+    from app.schema import ensure_schema  # clinical, community and gov tables live in their own files (Dev B)
+
+    ensure_schema(db)
 
 
 def stage_csvs(csv_dir: Path):
