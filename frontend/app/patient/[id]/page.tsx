@@ -7,7 +7,8 @@ import SymptomReport from "@/components/SymptomReport";
 export default function PatientPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <>
+    <div className="content" style={{ maxWidth: 1080 }}>
+      <div className="eyebrow">Clinical views · Patient</div>
       <h1>Your health overview</h1>
       <p className="sub">
         Written by AI from your records, and checked by other programs before you see it. Click any sentence to see where it comes
@@ -15,6 +16,6 @@ export default function PatientPage() {
       </p>
       <SummaryView patientId={id} audience="patient" />
       <SymptomReport patientId={id} />
-    </>
+    </div>
   );
 }

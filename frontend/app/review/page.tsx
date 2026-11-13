@@ -4,6 +4,7 @@ import { useApi } from "@/lib/useApi";
 import { api } from "@/lib/api";
 import type { ReviewItem } from "@/lib/types";
 import ErrorBox from "@/components/ErrorBox";
+import PageHead from "@/components/PageHead";
 import Status from "@/components/Status";
 
 export default function ReviewPage() {
@@ -24,21 +25,32 @@ export default function ReviewPage() {
     else setError(r.message);
   }
 
+  const symptoms = items?.filter((i) => i.kind === "symptom").length ?? 0;
+  const sentences = items?.filter((i) => i.kind === "sentence").length ?? 0;
   return (
-    <>
-      <h1>Clinician review queue</h1>
-      <p className="sub">Flagged summary sentences and new patient-reported symptoms. Approved new symptoms become validated rare cases in the research pool.</p>
-      <div className="card row">
-        <label className="small">
-          Reviewer <input type="text" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
-        </label>
-        <span className="spacer" />
-        <button className="secondary" onClick={load}>
-          Refresh
-        </button>
-      </div>
+    <div className="content">
+      <PageHead
+        eyebrow="Governance · Human oversight"
+        title="Clinical Review"
+        sub="Items the system will not decide on its own: AI summary sentences that failed a check, and patient-reported symptoms that are not a known side effect. Approved NEW symptoms become validated rare cases in the Cohort Explorer."
+        actions={
+          <>
+            <label className="small row">
+              Reviewer <input type="text" value={reviewer} onChange={(e) => setReviewer(e.target.value)} />
+            </label>
+            <button className="secondary" onClick={load}>Refresh</button>
+          </>
+        }
+      />
+      {items && (
+        <div className="row" style={{ marginBottom: 12 }}>
+          <Status tone="warn" label={`${symptoms} patient symptom${symptoms === 1 ? "" : "s"}`} />
+          <Status tone="info" label={`${sentences} summary sentence${sentences === 1 ? "" : "s"}`} />
+          <span className="small muted">Every decision is written to the audit chain (review.decision).</span>
+        </div>
+      )}
       {error && <ErrorBox message={`Review queue unavailable: ${error}`} />}
-      {items && items.length === 0 && <p className="muted">Nothing waiting for review.</p>}
+      {items && items.length === 0 && <div className="card"><div className="empty">Nothing waiting for review.</div></div>}
       {items?.map((it) => (
         <div className="card" key={it.item_id}>
           <div className="row">
@@ -76,6 +88,6 @@ export default function ReviewPage() {
           )}
         </div>
       ))}
-    </>
+    </div>
   );
 }
