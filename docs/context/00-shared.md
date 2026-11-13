@@ -132,8 +132,9 @@ All lowercase. Synthea columns that are reserved words get renamed on load (`dat
 - DDL for `gov` and `clinical`: `db/gov_schema.sql`, `db/clinical_schema.sql` (the API creates them on startup)
 
 **community** (Dev B writes)
-- `community.reports(report_id, patient_id, text, onset_date, submitted_at)`
-- `community.symptoms(symptom_id, report_id, patient_id, span, term, snomed_code, classification, reason, evidence_json, review_status, reviewed_by, reviewed_at)` — `review_status` ∈ `not_required, pending, approved, rejected`
+- `community.reports(report_id, patient_id, report_text, onset_date, submitted_at)`
+- `community.symptoms(symptom_id, report_id, patient_id, span, term, snomed_code, classification, reason, evidence_json, exposure_code, exposure_label, exposure_date, onset_date, review_status, reviewed_by, reviewed_at, review_note, created_at)` — `review_status` ∈ `not_required, pending, approved, rejected`; `exposure_*` = the vaccine/medicine the symptom was matched to (EXPECTED) or the latest one within 90 days before onset (NEW), so pool views can group by it
+- DDL: `db/community_schema.sql` (created on startup)
 
 **pool** (views only, Dev A; the **only** schema Ask the data may read)
 - `pool.patients(pseudo_id, age_band, sex, race, ethnicity)` — age band = 10-year bands
