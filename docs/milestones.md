@@ -64,7 +64,7 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 ## M5 Proof · H14–H17
 
 - [ ] `/evals/latest`: PL1 catch rate, sentence support rate, PL3 classification accuracy, PL4 block rate, PL5 rejection (B)
-- [ ] Tamper demo: edit one audit row → verify shows broken at #N (A)
+- [x] Tamper demo: edit one audit row → verify shows broken at #N (A) — `python -m app.db run scripts/tamper.sql` (run again to restore)
 - [ ] Every screen: AI text carries sources or "Unverified" (C)
 
 ## M6 Demo · H17–H20

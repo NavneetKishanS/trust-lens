@@ -242,3 +242,24 @@ def test_exposure_outcome_rate_reads_pool_only_and_counts(pool_db):
     assert row == {"n_exposed": 1, "n_outcome_exposed": 0, "n_unexposed": 1, "n_outcome_unexposed": 0}
     none = pool_db.query(sql, {"exposure_code": "999", "outcome_code": "59621000", "window_days": 90})[0]
     assert none == {"n_exposed": 0, "n_outcome_exposed": 0, "n_unexposed": 0, "n_outcome_unexposed": 0}
+
+
+# ---------- audit tamper demo (A8) ----------
+def test_tamper_script_breaks_and_restores_the_chain(pool_db):
+    from datetime import date
+
+    from app.clinical import review, symptoms
+
+    r = symptoms.submit_report(P1, "Since my booster I'm tired and have blurred vision.", date(2026, 10, 30))
+    bv = next(s for s in r["symptoms"] if s["term"] == "blurred vision")
+    seq = review.decide(bv["symptom_id"], "approve", "Dr. Weber", "")
+    audit.append("system:test", "eval.completed", "after-review", {}, db=pool_db)  # the edited row isn't the last
+    assert audit.verify()["valid"]
+
+    pool_db.run_script("scripts/tamper.sql")
+    assert audit.verify() == {"valid": False, "length": seq + 1, "broken_at": seq}
+    payload = pool_db.query("SELECT payload_json FROM gov.audit_events WHERE seq = ?", [seq])[0]["payload_json"]
+    assert '"decision":"reject"' in payload
+
+    pool_db.run_script("scripts/tamper.sql")  # running it again restores the original row
+    assert audit.verify()["valid"]
