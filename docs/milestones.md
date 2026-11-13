@@ -19,9 +19,9 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 ## M1 Evidence-backed summaries · H2–H6
 
 - [ ] `ref.lab_ranges` + `db/facts.sql` (A, H4)
-- [ ] Generator + critic + verifier, patient + physician audiences (B)
-- [ ] `inject_error` (PL1) (B)
-- [ ] Lineage sentence → fact → row (B)
+- [x] Generator + critic + verifier, patient + physician audiences (B)
+- [x] `inject_error` (PL1) (B)
+- [x] Lineage sentence → fact → row (B)
 
 **Exit:** `GET /patients/{id}/summary?audience=patient` for 3 patients: every sentence cites facts, `/lineage/SEN-…` reaches OBS rows, no banned phrases; `inject_error=true` → flagged.
 

@@ -127,8 +127,9 @@ All lowercase. Synthea columns that are reserved words get renamed on load (`dat
 
 **clinical** (Dev B writes)
 - `clinical.facts(fact_id, patient_id, kind, data_json, source_row_ids, computed_at)` — `kind` ∈ `LAB_TREND, CONDITION, MEDICATION, IMMUNIZATION, ENCOUNTER, CAREPLAN, ALLERGY, NEXT_STEP`
-- `clinical.summaries(summary_id, patient_id, audience, overall_status, model, prompt_hash, created_at)`
-- `clinical.sentences(sentence_id, summary_id, section, text, fact_ids, critic_status, critic_reasons, verifier_status, verifier_reason, review_status, reviewed_by, reviewed_at)`
+- `clinical.summaries(summary_id, patient_id, audience, inject_error, overall_status, model, prompt_hash, created_at)`
+- `clinical.sentences(sentence_id, summary_id, sort_order, section, sentence_text, fact_ids, critic_status, critic_reasons, verifier_status, verifier_reason, review_status, reviewed_by, reviewed_at)` — `review_status` ∈ `auto_ok, needs_review, approved, rejected`
+- DDL for `gov` and `clinical`: `db/gov_schema.sql`, `db/clinical_schema.sql` (the API creates them on startup)
 
 **community** (Dev B writes)
 - `community.reports(report_id, patient_id, text, onset_date, submitted_at)`
