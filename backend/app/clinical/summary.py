@@ -28,6 +28,25 @@ def get_summary(patient_id: str, audience: str, inject_error: bool = False, refr
     return generate_summary(patient_id, audience, inject_error, db)
 
 
+def evaluate(patient_id: str, audience: str, inject_error: bool, db: DB) -> dict:
+    """Run generator -> critic -> verifier without persisting anything (used by the evals).
+
+    Returns {"sentences": [{"text", "critic", "verifier", "ok"}], "injected": ..., "model": ...}."""
+    selected = templates.facts_for(audience, facts_mod.compute(patient_id, db))
+    facts_by_id = {f["fact_id"]: f for f in selected}
+    gen = agents.generate(audience, selected)
+    out = gen.parsed if gen.ok else agents._stub_generate(audience, selected)
+    injected = agents.inject_error(out, facts_by_id) if inject_error else None
+    flat = [s for section in out.sections for s in section.sentences]
+    critic_results = [critic.check(s.text, s.fact_ids, facts_by_id, audience) for s in flat]
+    verdicts, _ = agents.verify([{"index": i, "text": s.text, "facts": [facts_by_id[f]["data"] for f in s.fact_ids
+                                                                         if f in facts_by_id]}
+                                 for i, s in enumerate(flat)], critic_results)
+    return {"model": gen.meta["model"] if gen.ok else "template-fallback", "injected": injected, "sentences": [
+        {"text": s.text, "critic": c, "verifier": v, "ok": c["status"] == "PASS" and v["status"] == "SUPPORTED"}
+        for s, c, v in zip(flat, critic_results, verdicts)]}
+
+
 def generate_summary(patient_id: str, audience: str, inject_error: bool, db: DB) -> dict:
     all_facts = facts_mod.compute(patient_id, db)  # raises PatientNotFound
     selected = templates.facts_for(audience, all_facts)

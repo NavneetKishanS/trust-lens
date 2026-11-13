@@ -12,7 +12,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from . import audit, lineage, llm, stubs
+from . import audit, evals, lineage, llm, stubs
 from . import models as m
 from .clinical import facts, patients, review, summary, symptoms
 from .db import get_db, table_count
@@ -123,6 +123,10 @@ def verify_audit():
 
 
 @router.get("/evals/latest", response_model=m.Evals, tags=["governance"])
-def evals_latest(response: Response):
-    _stub(response)
-    return stubs.evals()
+def evals_latest():
+    return evals.latest()
+
+
+@router.post("/evals/run", response_model=m.Evals, tags=["governance"])
+def evals_run(patients: int = Query(evals.PATIENT_SAMPLE, ge=1, le=100)):
+    return evals.run(patients=patients)
