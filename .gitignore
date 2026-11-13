@@ -3,8 +3,10 @@
 __pycache__/
 *.pyc
 
-# Data (generated, synthetic)
+# Data (generated or fetched; never commit)
 data/out/
+data/synthea/
+data/papers/
 *.duckdb
 *.duckdb.wal
 

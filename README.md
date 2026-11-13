@@ -1,61 +1,49 @@
 # TrustLens
 
-**Before the AI answers, it checks whether the data can answer.**
+**Every AI sentence is backed by data you can click through to, checked by other agents, and signed off by a human where it matters.**
 
-Built for the Exasol × Medical Valley EMN Healthcare Hackathon Bayern (Erlangen, 12–14 Nov 2026), challenge:
+Built for the Exasol × Medical Valley EMN Healthcare Hackathon Bayern (Erlangen, November 2026), challenge:
 *"Would you trust an AI with your health?"*
 
-TrustLens takes a clinical research question, such as *"Can we analyse changes in HbA1c across patients from
-different laboratories?"*, and runs deterministic validation checks in Exasol on the data first. It then returns a
-verdict (**Supported / Conditionally supported / Not supported**) with evidence, limitations and full lineage.
-A human approves the limitations before any analysis runs.
+| User | What they get |
+|---|---|
+| **Patient** | A plain-language overview of their records and lab results ("your blood sugar was high in March, now it's in the usual range"). No diagnoses, no advice. They can report new symptoms: listed side effects are recorded for statistics, unexpected ones go to a clinician |
+| **Physician** | The same overview with clinical codes and clickable lineage, plus a review queue. The AI summarises; it never tells the doctor what to do |
+| **Researcher** | A knowledge graph of research papers (relations established, criticised and sanity-checked by three agents, each with a verbatim quote and link), an anonymised patient pool with validated rare cases, and "Ask the data" with the SQL shown and small counts suppressed |
 
-The same engine powers:
-- **Physician view:** a "since last visit" patient summary. Every sentence is cited and checked by critic and verifier agents, and flagged claims go to clinician review.
-- **Patient view:** a plain-language overview, next steps and a symptom diary. Diary entries only enter the research pool after clinician review, with k-anonymity.
-
-Every action goes into a **hash-chained audit log**, and a **seeded-defect eval** shows how many known data problems the system caught.
+Every action is written to a **hash-chained audit log**; every output has **lineage** back to source rows or papers.
 
 ## Architecture
 
-Full diagrams (system, trust flow, agent loop): [`docs/architecture.md`](docs/architecture.md)
+Diagrams: [`docs/architecture.md`](docs/architecture.md)
 
 ```
-Frontend (Next.js)  ──REST──►  Backend (FastAPI)  ──►  Exasol Personal on AWS (DuckDB locally)
-                                 trust engine · agents     raw · curated · validation · lineage
-                                 analysis · audit · evals   audit · community · agents · evals
-                                                       ──►  Claude (Bedrock eu-central-1 / Anthropic API / stub)
-                                                       ──►  ElevenLabs TTS (optional)
+FastAPI  ──►  Exasol on AWS eu-central-1 (DuckDB fallback): curated Synthea EHR · ref · community · pool views · research · gov
+   │     ──►  Claude Opus 5.5 (Bedrock EU / Anthropic API / stub)
+   │     ──►  Europe PMC REST (papers)
+   └── Next.js UI (after the MVP freeze)
 ```
 
 ## Team docs (start here)
 
 | File | For |
 |---|---|
-| [`docs/context/00-shared.md`](docs/context/00-shared.md) | Everyone: contracts, API, verdict rules, timeline, demo script |
-| [`docs/context/01-dev-a-data.md`](docs/context/01-dev-a-data.md) | Dev A: data, Exasol, validation SQL |
-| [`docs/context/02-dev-b-agents.md`](docs/context/02-dev-b-agents.md) | Dev B: backend API, trust engine, agents, evals |
-| [`docs/context/03-dev-c-frontend.md`](docs/context/03-dev-c-frontend.md) | Dev C: frontend, lineage UX, demo |
+| [`docs/context/00-shared.md`](docs/context/00-shared.md) | Everyone: scope, data and API contracts, decision rules, milestones, demo script |
+| [`docs/milestones.md`](docs/milestones.md) | The 20-hour milestone tracker with owners and exit tests |
+| [`docs/context/01-dev-a-data.md`](docs/context/01-dev-a-data.md) | Dev A: Exasol, Synthea load, facts SQL, anonymised pool, planted signal |
+| [`docs/context/02-dev-b-clinical.md`](docs/context/02-dev-b-clinical.md) | Dev B: API core, LLM client, audit + lineage, patient/physician summaries, symptom loop, review |
+| [`docs/context/03-dev-c-research.md`](docs/context/03-dev-c-research.md) | Dev C: papers, knowledge graph agents, Ask the data, then UI |
 | [`CLAUDE.md`](CLAUDE.md) | AI coding agents: read this first |
-
-## Repo layout
-
-```
-data/generate.py     synthetic T2DM cohort across 3 labs, with 9 seeded defects
-db/                  schema.sql, checks.sql (Exasol + DuckDB portable)
-backend/             FastAPI service
-frontend/            Next.js app
-docs/context/        team context docs
-```
 
 ## Quick start
 
 ```bash
-python3 data/generate.py          # writes data/out/*.csv (synthetic only)
 cp .env.example .env              # fill in credentials; never commit .env
+# Generate Synthea CSVs (Java 17+) — see docs/context/01-dev-a-data.md §4
 ```
-Backend and frontend run instructions will be added as those slices land (see the context docs).
+Backend run instructions will be added when the M0 skeleton lands.
 
 ## Data
 
-All data is **synthetic**, generated by `data/generate.py`. No real patient data is used or committed.
+All patient data is **synthetic** (Synthea). The research signal used in the demo is planted on purpose and labelled as such.
+Paper abstracts are fetched from Europe PMC at build time and are not committed.
