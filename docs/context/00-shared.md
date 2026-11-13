@@ -208,7 +208,7 @@ Every write endpoint returns `audit_seq`.
 
 ### Research (Dev C; pool endpoints read Dev A's views)
 - `GET /pool/rare` → `{"k":5,"items":[{"term":"blurred vision","exposure_label":"Moderna (CVX 207)","age_band":"40-49","sex":"F","n_reports":"<5","first_month":"2026-11"}]}`
-- `POST /research/ask` body `{"question":"..."}` →
+- `POST /research/ask` body `{"question":"...","sql":null}` (`sql` optional: researcher-written SQL, same guard) →
   ```json
   {"ask_id":"ASK-...","question":"...","sql":"SELECT ...","guard":{"ok":true,"violations":[]},
    "columns":["age_band","n_exposed","n_hypertension","rate_pct"],"rows":[["40-49","212","19","9.0"]],"suppressed_cells":2,
@@ -217,8 +217,11 @@ Every write endpoint returns `audit_seq`.
    "mode":"llm|template","audit_seq":55}
   ```
   Blocked query → `guard.ok=false`, no rows, `sufficiency.verdict="NOT_SUPPORTED"`, audit `ask.blocked`. Cells are strings because of `"<5"`.
-- `POST /research/graph/build` body `{"topic":"covid_vaccine_safety","max_papers":60}` → `{"run_id":"KG-...","papers":60,"candidate_edges":180,"accepted":120,"rejected":60,"audit_seq":60}`
-- `GET /research/graph?concept=CVX:207&depth=1` →
+  Also returned: `mode` may be `"sql"` (researcher SQL), `rationale` (LLM's reason or null), `template` (template key or null),
+  each summary item has `reasons` (critic findings). `sufficiency.n` is `null` when the total is under k=5.
+- `GET /research/ask/templates` → `{"templates":[{"key":"hypertension_after_moderna","question":"..."}]}` (the stub-safe demo questions)
+- `POST /research/graph/build` body `{"topic":"covid_vaccine_safety","max_papers":60,"inject_fabricated_quote":false}` (`true` plants PL5) → `{"run_id":"KG-...","papers":60,"candidate_edges":180,"accepted":120,"rejected":60,"audit_seq":60}`
+- `GET /research/graph?concept=CVX:207&depth=1&include_rejected=false` (latest build only; adds `"run_id"`) →
   ```json
   {"nodes":[{"node_id":"CVX:207","type":"concept","label":"SARS-COV-2 mRNA vaccine (Moderna)","code_system":"CVX","pool_patients":"812"},
             {"node_id":"PMID:12345678","type":"paper","label":"Title ...","year":2023}],
@@ -230,7 +233,11 @@ Every write endpoint returns `audit_seq`.
      "status":"ACCEPTED"},
     {"edge_id":"CIT-...","src":"PMID:23456789","dst":"PMID:12345678","relation":"CITES"}]}
   ```
-- `GET /research/edges/{edge_id}` → one edge (shape above) plus `"lineage":[LineageEdge]`
+  Additions: concept nodes carry `free` (FREE: node, shown grey) and `known`; `sanity.support_years` = `{"oldest":2021,"newest":2024}` or null;
+  `pool_evidence` also has `sql_source`, `exposure_codes`, `n_unexposed`, `synthetic:true`, `note`, or a `reason` when UNTESTABLE.
+  Deterministic `IS_A` edges (`{"edge_id":"ISA-CVX:207-CVX:213","src":"CVX:207","dst":"CVX:213","relation":"IS_A","source":"ontology"}`)
+  link a vaccine to "COVID-19 vaccine (any)" (CVX 213), which papers use when they don't name the product.
+- `GET /research/edges/{edge_id}` → one edge (shape above) plus `"lineage":[LineageEdge]` and `"run_id"`
 
 ### Governance (Dev B)
 - `GET /lineage/{id}` → `{"id":"SEN-...","type":"sentence","chain":[{"id":"FCT-...","type":"fact","transform":"facts.sql:lab_trend","agent":null,"model":null,"prompt_hash":null,"depth":1},{"id":"OBS-0004411","type":"curated.observations","transform":"load:synthea","depth":2}],"producer":{"agent":"generator","model":"...","prompt_hash":"..."}}`

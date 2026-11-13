@@ -1,7 +1,7 @@
 """All shared §7 routes.
 
-Live: /health, /audit, /audit/verify, /lineage/{id}, /review/*, /pool/rare, and (once curated.patients exists)
-/patients, facts, summary, reports.
+Live: /health, /audit, /audit/verify, /lineage/{id}, /review/*, and (once curated.patients exists)
+/patients, facts, summary, reports. Research routes (incl. /pool/rare) live in routes_research.py.
 The rest return stubs.
 
 When a slice lands, move its routes into their own module (routes_clinical.py, routes_research.py, ...).
@@ -15,7 +15,6 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from . import audit, lineage, llm, stubs
 from . import models as m
 from .clinical import facts, patients, review, summary, symptoms
-from .research import pool
 from .db import get_db, table_count
 from .schema import table_exists
 
@@ -101,34 +100,7 @@ def review_decision(item_id: str, body: m.ReviewDecisionIn):
         raise HTTPException(status_code=409, detail=str(exc))
 
 
-# ---------- research (Dev C, M3) ----------
-@router.get("/pool/rare", response_model=m.RareCases, tags=["research"])
-def pool_rare():
-    return pool.rare_cases()
-
-
-@router.post("/research/ask", response_model=m.AskOut, tags=["research"])
-def research_ask(body: m.AskIn, response: Response):
-    _stub(response)
-    return stubs.ask(body.question)
-
-
-@router.post("/research/graph/build", response_model=m.GraphBuildOut, tags=["research"])
-def graph_build(body: m.GraphBuildIn, response: Response):
-    _stub(response)
-    return stubs.graph_build()
-
-
-@router.get("/research/graph", response_model=m.Graph, tags=["research"])
-def research_graph(response: Response, concept: str | None = None, depth: int = Query(1, ge=1, le=3)):
-    _stub(response)
-    return stubs.graph()
-
-
-@router.get("/research/edges/{edge_id}", response_model=m.EdgeDetail, tags=["research"])
-def research_edge(edge_id: str, response: Response):
-    _stub(response)
-    return stubs.edge(edge_id)
+# ---------- research (Dev C, M3): live in routes_research.py ----------
 
 
 # ---------- governance (live) ----------

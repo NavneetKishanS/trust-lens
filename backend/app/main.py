@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from .db import get_db
 from .routes import router
+from .routes_research import router as research_router
 from .schema import ensure_gov_schema
 
 
@@ -28,6 +29,7 @@ app = FastAPI(
 )
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_methods=["*"], allow_headers=["*"],
                    expose_headers=["X-TrustLens-Stub"])
+app.include_router(research_router)
 app.include_router(router)
 
 
