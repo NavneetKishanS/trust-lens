@@ -8,9 +8,9 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 - [ ] Exasol Personal launching on AWS eu-central-1 (A)
 - [ ] Synthea CSVs in `data/synthea/csv/` (or Kaggle fallback) (A)
 - [ ] `db/schema.sql`, `db.py`, `load.py` → curated loaded in DuckDB (A)
-- [ ] FastAPI skeleton, all §7 routes return stub shapes (B)
-- [ ] `llm.py` with stub / anthropic / bedrock; `gov.llm_calls` (B)
-- [ ] `audit.py` + `lineage.py`; `/audit`, `/audit/verify`, `/lineage/{id}` (B)
+- [x] FastAPI skeleton, all §7 routes return stub shapes (B)
+- [x] `llm.py` with stub / anthropic / bedrock; `gov.llm_calls` (B)
+- [x] `audit.py` + `lineage.py`; `/audit`, `/audit/verify`, `/lineage/{id}` (B)
 - [ ] Europe PMC fetch script started, caching JSON (C)
 - [ ] Shared `ANON_SALT` agreed, `.env` on every laptop (all)
 

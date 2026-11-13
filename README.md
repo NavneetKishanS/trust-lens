@@ -38,10 +38,14 @@ FastAPI  ──►  Exasol on AWS eu-central-1 (DuckDB fallback): curated Synthe
 ## Quick start
 
 ```bash
-cp .env.example .env              # fill in credentials; never commit .env
+cp .env.example .env              # fill in credentials; never commit .env (LLM_PROVIDER=stub works without any)
+python3.12 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
+.venv/bin/python -m pytest backend/tests -q
+.venv/bin/uvicorn app.main:app --app-dir backend --reload --port 8000    # Swagger: http://localhost:8000/docs
 # Generate Synthea CSVs (Java 17+) — see docs/context/01-dev-a-data.md §4
 ```
-Backend run instructions will be added when the M0 skeleton lands.
+Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Responses with the header
+`X-TrustLens-Stub: true` still return contract-shaped example data; `/health`, `/audit`, `/audit/verify` and `/lineage/{id}` are live.
 
 ## Data
 
