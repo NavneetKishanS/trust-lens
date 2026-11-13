@@ -1,0 +1,13 @@
+concept_id,label,synonyms
+CVX:207,,Moderna; mRNA-1273; Spikevax; elasomeran; Moderna COVID-19 vaccine
+CVX:208,,Pfizer; Pfizer-BioNTech; BNT162b2; Comirnaty; tozinameran; Pfizer COVID-19 vaccine
+CVX:212,,Janssen; Johnson & Johnson; Ad26.COV2.S; Jcovden
+SNOMED:59621000,,hypertension; high blood pressure; hypertensive; essential hypertension; arterial hypertension
+SNOMED:44054006,,type 2 diabetes; type 2 diabetes mellitus; T2DM; T2D; diabetes mellitus type 2
+SNOMED:15777000,,prediabetes; pre-diabetes; impaired glucose tolerance
+SNOMED:22298006,,myocardial infarction; heart attack; MI
+SNOMED:840539006,,COVID-19; SARS-CoV-2 infection; coronavirus disease 2019
+RXNORM:860975,,metformin; metformin hydrochloride
+FREE:myocarditis,Myocarditis (not in our Synthea data),myocarditis; myocardial inflammation; inflammation of the heart muscle
+FREE:pericarditis,Pericarditis (not in our Synthea data),pericarditis; pericardial inflammation
+FREE:anaphylaxis,Anaphylaxis (not in our Synthea data),anaphylaxis; anaphylactic reaction; severe allergic reaction

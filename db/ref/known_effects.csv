@@ -1,0 +1,28 @@
+effect_id,product_system,product_code,product_name,effect_term,window_days,source_title,source_url
+KE-207-injection-site-pain,CVX,207,Moderna,injection site pain,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-injection-site-swelling,CVX,207,Moderna,injection site swelling,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-injection-site-redness,CVX,207,Moderna,injection site redness,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-fatigue,CVX,207,Moderna,fatigue,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-headache,CVX,207,Moderna,headache,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-muscle-pain,CVX,207,Moderna,muscle pain,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-joint-pain,CVX,207,Moderna,joint pain,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-chills,CVX,207,Moderna,chills,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-nausea,CVX,207,Moderna,nausea,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-vomiting,CVX,207,Moderna,vomiting,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-fever,CVX,207,Moderna,fever,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-swollen-lymph-nodes,CVX,207,Moderna,swollen lymph nodes,14,EMA EPAR Spikevax (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-diarrhea,CVX,207,Moderna,diarrhea,14,EMA EPAR Spikevax (common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-207-rash,CVX,207,Moderna,rash,14,EMA EPAR Spikevax (common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/spikevax
+KE-208-injection-site-pain,CVX,208,Pfizer-BioNTech,injection site pain,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-injection-site-swelling,CVX,208,Pfizer-BioNTech,injection site swelling,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-fatigue,CVX,208,Pfizer-BioNTech,fatigue,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-headache,CVX,208,Pfizer-BioNTech,headache,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-muscle-pain,CVX,208,Pfizer-BioNTech,muscle pain,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-joint-pain,CVX,208,Pfizer-BioNTech,joint pain,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-chills,CVX,208,Pfizer-BioNTech,chills,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-fever,CVX,208,Pfizer-BioNTech,fever,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-diarrhea,CVX,208,Pfizer-BioNTech,diarrhea,14,EMA EPAR Comirnaty (very common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-injection-site-redness,CVX,208,Pfizer-BioNTech,injection site redness,14,EMA EPAR Comirnaty (common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-swollen-lymph-nodes,CVX,208,Pfizer-BioNTech,swollen lymph nodes,14,EMA EPAR Comirnaty (common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-nausea,CVX,208,Pfizer-BioNTech,nausea,14,EMA EPAR Comirnaty (common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
+KE-208-vomiting,CVX,208,Pfizer-BioNTech,vomiting,14,EMA EPAR Comirnaty (common side effects),https://www.ema.europa.eu/en/medicines/human/EPAR/comirnaty
