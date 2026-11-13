@@ -71,7 +71,7 @@ trustlens/
   data/papers/                    # Europe PMC JSON cache (git-ignored)
   data/seed_signal.py             # planted reports + signal (Dev A)
   db/schema.sql                   # all tables (Dev A)
-  db/facts.sql                    # per-patient facts, '-- name:' blocks (Dev A)
+  db/facts.sql                    # per-patient facts, '-- name: <kind>' blocks, '?' = patient_id; data columns packed by app/factsql.py (Dev A)
   db/pool_views.sql               # anonymised views (Dev A)
   db/pool_schema.md               # view/column list pasted into the text-to-SQL prompt (Dev A)
   backend/app/
@@ -118,6 +118,10 @@ All lowercase. Synthea columns that are reserved words get renamed on load (`dat
 - `curated.careplans(row_id, careplan_id, patient_id, encounter_id, start_date, stop_date, concept_code, description, reason_code, reason_description)`
 - `curated.allergies(row_id, patient_id, start_date, stop_date, concept_code, description, category)`
 - every curated row also has `source_file, source_line, origin` where `origin` is `synthea` or `seed_signal` (planted rows are always labelled)
+- `curated.age_bands(age_years, age_band)` — lookup used by the pool views ('40-49', '90+'); `curated.v_pool_person` and `curated.v_pool_symptoms` are the pool's helper views. None of these is readable by Ask the data
+- `curated.pseudo_ids(patient_id, pseudo_id)` — the pseudonym map (§5), computed in Python at load so the salt never sits in the DB. Lives in `curated`, so Ask the data can't read it
+- DDL: `db/schema.sql` (raw, curated, ref, community, pool, research, evals); `db/gov_schema.sql` + `db/clinical_schema.sql` (Dev B). Timestamps the API writes are ISO-8601 text
+- **Exasol reserved words in our names:** `ref`, `text`, `section`, `state`, `low`, `high`, `transform`. `app/db.py` quotes them automatically on Exasol; write them lowercase and unquoted. Don't introduce new ones (`backend/tests/exasol_reserved_words.txt`, checked by `test_data.py`)
 
 **ref** (small, hand-made, Dev A)
 - `ref.lab_ranges(loinc, name, units, low, high, plain_name)` — demo ranges, not clinical advice
@@ -132,7 +136,7 @@ All lowercase. Synthea columns that are reserved words get renamed on load (`dat
 - DDL for `gov` and `clinical`: `db/gov_schema.sql`, `db/clinical_schema.sql` (the API creates them on startup)
 
 **community** (Dev B writes)
-- `community.reports(report_id, patient_id, report_text, onset_date, submitted_at)`
+- `community.reports(report_id, patient_id, report_text, onset_date, submitted_at, origin)` — `origin` ∈ `patient` (default), `seed_signal` (planted PL3 reports from `data/seed_signal.py`)
 - `community.symptoms(symptom_id, report_id, patient_id, span, term, snomed_code, classification, reason, evidence_json, exposure_code, exposure_label, exposure_date, onset_date, review_status, reviewed_by, reviewed_at, review_note, created_at)` — `review_status` ∈ `not_required, pending, approved, rejected`; `exposure_*` = the vaccine/medicine the symptom was matched to (EXPECTED) or the latest one within 90 days before onset (NEW), so pool views can group by it
 - DDL: `db/community_schema.sql` (created on startup)
 

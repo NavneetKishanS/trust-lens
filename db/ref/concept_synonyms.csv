@@ -4,7 +4,6 @@ CVX:208,,Pfizer; Pfizer-BioNTech; BNT162b2; Comirnaty; tozinameran; Pfizer COVID
 CVX:212,,Janssen; Johnson & Johnson; Ad26.COV2.S; Jcovden
 SNOMED:59621000,,hypertension; high blood pressure; hypertensive; essential hypertension; arterial hypertension
 SNOMED:44054006,,type 2 diabetes; type 2 diabetes mellitus; T2DM; T2D; diabetes mellitus type 2
-SNOMED:15777000,,prediabetes; pre-diabetes; impaired glucose tolerance
 SNOMED:22298006,,myocardial infarction; heart attack; MI
 SNOMED:840539006,,COVID-19; SARS-CoV-2 infection; coronavirus disease 2019
 RXNORM:860975,,metformin; metformin hydrochloride

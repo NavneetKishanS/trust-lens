@@ -42,9 +42,14 @@ cp .env.example .env              # fill in credentials; never commit .env (LLM_
 python3.12 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 .venv/bin/python -m pytest backend/tests -q
 .venv/bin/uvicorn app.main:app --app-dir backend --reload --port 8000    # Swagger: http://localhost:8000/docs
-# Generate Synthea CSVs (Java 17+) — see docs/context/01-dev-a-data.md §4
+# Generate Synthea CSVs (Java 17+) into data/synthea/csv/ — see docs/context/01-dev-a-data.md §4
+cd backend && ../.venv/bin/python -m app.load --reset      # Synthea + ref tables -> DuckDB (or Exasol if EXASOL_DSN is set), ~15 s
+../.venv/bin/python ../data/seed_signal.py                  # planted PL2/PL3/PL4 + demo patient (origin='seed_signal'), ~20 s
+../.venv/bin/python -m app.factsql --check 5                # facts for 5 random patients; every source row must exist
+../.venv/bin/python scripts/check_seed.py --demo             # PL2 by age band from the pool; M2 exit path for the demo patient
+../.venv/bin/python scripts/smoke_summaries.py 10           # stub summaries for 10 real patients, both audiences
 ```
-Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Until the Synthea load lands, `cd backend && ../.venv/bin/python -m app.devdata` adds 3 labelled dev-fixture patients so the summary endpoints work. Responses with the header
+Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Without Synthea CSVs, `cd backend && ../.venv/bin/python -m app.devdata` adds 3 labelled dev-fixture patients instead. Stop the API before running the loader: DuckDB allows only one process to open the file. To reset before a demo rehearsal, run `app.load --reset` and `seed_signal.py` again. Responses with the header
 `X-TrustLens-Stub: true` still return contract-shaped example data; `/health`, `/audit`, `/audit/verify` and `/lineage/{id}` are live.
 
 ### Research engine (Dev C)

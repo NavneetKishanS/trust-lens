@@ -103,9 +103,11 @@ def split_statements(script: str) -> list[str]:
     """Split a script on ';' outside strings and comments. Comment-only statements are dropped."""
     out, buf, has_code = [], [], False
     for kind, tok in _scan(script):
+        if kind == "comment":
+            continue
         if kind != "code":
             buf.append(tok)
-            has_code = has_code or kind in ("str", "ident")
+            has_code = True
             continue
         parts = tok.split(";")
         for k, part in enumerate(parts):

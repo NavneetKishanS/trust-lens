@@ -67,8 +67,9 @@ def _bind_part(part: str, params: dict, values: list) -> str:
 
 
 def query_named(db, sql: str, params: dict[str, Any]) -> list[dict]:
-    q, values = bind_named(sql, params)
-    return db.query(q, values)
+    """app.db now binds ':name' params itself and skips comments and strings, so pass them straight through.
+    (bind_named would also rewrite ':name' mentions inside SQL comments, e.g. Dev A's pool_queries.sql header.)"""
+    return db.query(sql, params)
 
 
 # ---------------------------------------------------------------------------------- audit + lineage

@@ -8,7 +8,8 @@ CREATE TABLE community.reports (
     patient_id      VARCHAR(100)  NOT NULL,
     report_text     VARCHAR(4000) NOT NULL,
     onset_date      DATE,
-    submitted_at    VARCHAR(40)   NOT NULL
+    submitted_at    VARCHAR(40)   NOT NULL,
+    origin          VARCHAR(20)   DEFAULT 'patient'   -- 'patient' | 'seed_signal' (planted, data/seed_signal.py)
 );
 
 CREATE TABLE community.symptoms (

@@ -147,6 +147,12 @@ CREATE TABLE IF NOT EXISTS curated.pseudo_ids (
     pseudo_id   VARCHAR(20) NOT NULL
 );
 
+-- Age in whole years -> 10-year band used by the pool views ('40-49'; 90 and over is '90+'). Filled by the loader.
+CREATE TABLE IF NOT EXISTS curated.age_bands (
+    age_years  INTEGER NOT NULL,
+    age_band   VARCHAR(10) NOT NULL
+);
+
 -- ============================================================================================
 -- ref: small hand-made reference tables (CSV sources in db/ref/)
 -- ============================================================================================

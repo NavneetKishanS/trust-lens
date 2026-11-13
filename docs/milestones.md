@@ -6,8 +6,8 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 ## M0 Foundation · H0–H2
 
 - [ ] Exasol Personal launching on AWS eu-central-1 (A)
-- [ ] Synthea CSVs in `data/synthea/csv/` (or Kaggle fallback) (A)
-- [ ] `db/schema.sql`, `db.py`, `load.py` → curated loaded in DuckDB (A)
+- [x] Synthea CSVs in `data/synthea/csv/` (or Kaggle fallback) (A)
+- [x] `db/schema.sql`, `db.py`, `load.py` → curated loaded in DuckDB (A)
 - [x] FastAPI skeleton, all §7 routes return stub shapes (B)
 - [x] `llm.py` with stub / anthropic / bedrock; `gov.llm_calls` (B)
 - [x] `audit.py` + `lineage.py`; `/audit`, `/audit/verify`, `/lineage/{id}` (B)
@@ -18,7 +18,7 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 
 ## M1 Evidence-backed summaries · H2–H6
 
-- [ ] `ref.lab_ranges` + `db/facts.sql` (A, H4)
+- [x] `ref.lab_ranges` + `db/facts.sql` (A, H4)
 - [x] Generator + critic + verifier, patient + physician audiences (B)
 - [x] `inject_error` (PL1) (B)
 - [x] Lineage sentence → fact → row (B)
@@ -27,11 +27,11 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 
 ## M2 Symptom loop + review · H5–H9
 
-- [ ] `ref.known_effects`, `ref.symptom_vocab` (A, H5)
-- [ ] `db/pool_views.sql` + `db/pool_schema.md` (A, H6)
+- [x] `ref.known_effects`, `ref.symptom_vocab` (A, H5)
+- [x] `db/pool_views.sql` + `db/pool_schema.md` (A, H6)
 - [x] Symptom intake: extract → map → classify (B)
 - [x] Review queue + decisions (B)
-- [ ] `data/seed_signal.py`: PL2 signal, PL3 reports, PL4 unsafe questions (A, H7)
+- [x] `data/seed_signal.py`: PL2 signal, PL3 reports, PL4 unsafe questions (A, H7)
 
 **Exit:** "tired, headache and blurred vision" after CVX 207 → 2 EXPECTED + 1 NEW pending → approve → `/pool/rare` lists blurred vision as `"<5"`.
 
@@ -40,10 +40,10 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 - [x] ≥ 50 papers in `research.papers`, offline cache (C, H4) — 332 papers, 729 citation links
 - [x] Ask the data: templates + guard + k-anon + sufficiency (C, H6)
 - [x] Ask the data: LLM text-to-SQL + cited summary (C, H8) — tested with a fake LLM; not yet run against live Claude
-- [ ] `ref.concepts` with synonyms (A, H7)
+- [x] `ref.concepts` with synonyms (A, H7)
 - [x] A1 establish + A2 critic + citation edges (C, H9)
-- [ ] `exposure_outcome_rate` pool SQL (A, H9)
-- [x] A3 sanity: literature + pool (C, H11) — uses a fallback `exposure_outcome_rate` until Dev A's lands
+- [x] `exposure_outcome_rate` pool SQL (A, H9)
+- [x] A3 sanity: literature + pool (C, H11) — uses Dev A's `db/pool_queries.sql:exposure_outcome_rate` (found automatically)
 - [ ] Exasol live with everything; DuckDB still works (A, H10)
 
 **Exit:** 5 demo questions answered with SQL + verdict; 5 unsafe ones blocked; `/research/graph?concept=CVX:207` returns cited edges with sanity labels; PL5 fabricated quote rejected.
@@ -64,7 +64,7 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 ## M5 Proof · H14–H17
 
 - [ ] `/evals/latest`: PL1 catch rate, sentence support rate, PL3 classification accuracy, PL4 block rate, PL5 rejection (B)
-- [ ] Tamper demo: edit one audit row → verify shows broken at #N (A)
+- [x] Tamper demo: edit one audit row → verify shows broken at #N (A) — `python -m app.db run scripts/tamper.sql` (run again to restore)
 - [ ] Every screen: AI text carries sources or "Unverified" (C)
 
 ## M6 Demo · H17–H20
