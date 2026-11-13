@@ -6,8 +6,8 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 ## M0 Foundation · H0–H2
 
 - [ ] Exasol Personal launching on AWS eu-central-1 (A)
-- [ ] Synthea CSVs in `data/synthea/csv/` (or Kaggle fallback) (A)
-- [ ] `db/schema.sql`, `db.py`, `load.py` → curated loaded in DuckDB (A)
+- [x] Synthea CSVs in `data/synthea/csv/` (or Kaggle fallback) (A)
+- [x] `db/schema.sql`, `db.py`, `load.py` → curated loaded in DuckDB (A)
 - [x] FastAPI skeleton, all §7 routes return stub shapes (B)
 - [x] `llm.py` with stub / anthropic / bedrock; `gov.llm_calls` (B)
 - [x] `audit.py` + `lineage.py`; `/audit`, `/audit/verify`, `/lineage/{id}` (B)
@@ -18,7 +18,7 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 
 ## M1 Evidence-backed summaries · H2–H6
 
-- [ ] `ref.lab_ranges` + `db/facts.sql` (A, H4)
+- [x] `ref.lab_ranges` + `db/facts.sql` (A, H4)
 - [x] Generator + critic + verifier, patient + physician audiences (B)
 - [x] `inject_error` (PL1) (B)
 - [x] Lineage sentence → fact → row (B)
