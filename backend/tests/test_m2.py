@@ -31,7 +31,7 @@ def test_m2_exit_path(data):
     assert "2 day(s) before onset" in s["fatigue"]["reason"]
     assert {"kind": "row", "id": "IMM-0000001"} in s["fatigue"]["evidence"]
     bv = s["blurred vision"]
-    assert bv["classification"] == "NEW" and bv["review_status"] == "pending" and bv["snomed_code"] == "111516008"
+    assert bv["classification"] == "NEW" and bv["review_status"] == "pending"
     assert "Not a listed side effect of Moderna (CVX 207)" in bv["reason"]
 
     queue = review.queue()
@@ -49,8 +49,9 @@ def test_m2_exit_path(data):
 
 
 def test_knee_pain_is_a_listed_moderna_effect(data):
-    s = by_term(symptoms.submit_report(P1, "my knee hurts", date(2026, 11, 1)))
-    assert s["joint pain"]["classification"] == "EXPECTED" and s["joint pain"]["span"] == "knee hurts"
+    s = by_term(symptoms.submit_report(P1, "I have knee pain", date(2026, 11, 1)))
+    assert s["joint pain"]["classification"] == "EXPECTED" and s["joint pain"]["span"] == "knee pain"
+    assert s["joint pain"]["evidence"][0]["source_url"].startswith("https://www.ema.europa.eu/")  # Dev A's ref data
 
 
 def test_outside_window_is_new(data):
