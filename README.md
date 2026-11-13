@@ -44,7 +44,7 @@ python3.12 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 .venv/bin/uvicorn app.main:app --app-dir backend --reload --port 8000    # Swagger: http://localhost:8000/docs
 # Generate Synthea CSVs (Java 17+) — see docs/context/01-dev-a-data.md §4
 ```
-Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Responses with the header
+Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Until the Synthea load lands, `cd backend && ../.venv/bin/python -m app.devdata` adds 3 labelled dev-fixture patients so the summary endpoints work. Responses with the header
 `X-TrustLens-Stub: true` still return contract-shaped example data; `/health`, `/audit`, `/audit/verify` and `/lineage/{id}` are live.
 
 ## Data

@@ -1,4 +1,7 @@
-"""All shared §7 routes. Live in M0: /health, /audit, /audit/verify, /lineage/{id}. The rest return stubs.
+"""All shared §7 routes.
+
+Live: /health, /audit, /audit/verify, /lineage/{id}, and (once curated.patients exists) /patients, facts, summary.
+The rest return stubs.
 
 When a slice lands, move its routes into their own module (routes_clinical.py, routes_research.py, ...).
 """
@@ -10,7 +13,9 @@ from fastapi import APIRouter, HTTPException, Query, Response
 
 from . import audit, lineage, llm, stubs
 from . import models as m
+from .clinical import facts, patients, summary
 from .db import get_db, table_count
+from .schema import table_exists
 
 router = APIRouter()
 
@@ -31,24 +36,40 @@ def health():
 
 
 # ---------- clinical (Dev B, M1/M2) ----------
+def _has_curated() -> bool:
+    return table_exists(get_db(), "curated.patients")
+
+
 @router.get("/patients", response_model=list[m.PatientListItem], tags=["clinical"])
 def list_patients(response: Response, limit: int = Query(20, ge=1, le=500), vaccinated: bool | None = None):
-    _stub(response)
-    return stubs.patients()[:limit]
+    if not _has_curated():  # no data loaded yet: keep the contract working for the other slices
+        _stub(response)
+        return stubs.patients()[:limit]
+    return patients.list_patients(limit, vaccinated)
 
 
 @router.get("/patients/{patient_id}/facts", response_model=m.PatientFacts, tags=["clinical"])
 def patient_facts(patient_id: str, response: Response):
-    _stub(response)
-    return stubs.facts(patient_id)
+    if not _has_curated():
+        _stub(response)
+        return stubs.facts(patient_id)
+    try:
+        return {"patient_id": patient_id, "facts": facts.compute(patient_id)}
+    except facts.PatientNotFound:
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
 
 @router.get("/patients/{patient_id}/summary", response_model=m.Summary, tags=["clinical"])
 def patient_summary(patient_id: str, response: Response,
                     audience: Literal["patient", "physician"] = "patient",
                     inject_error: bool = False, refresh: bool = False):
-    _stub(response)
-    return stubs.summary(patient_id, audience, inject_error)
+    if not _has_curated():
+        _stub(response)
+        return stubs.summary(patient_id, audience, inject_error)
+    try:
+        return summary.get_summary(patient_id, audience, inject_error=inject_error, refresh=refresh)
+    except facts.PatientNotFound:
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
 
 @router.post("/patients/{patient_id}/reports", response_model=m.ReportOut, tags=["clinical"])
