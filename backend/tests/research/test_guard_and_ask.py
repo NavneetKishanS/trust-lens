@@ -109,6 +109,8 @@ def test_researcher_sql_goes_through_guard(db):
 @pytest.mark.parametrize("sql,expected", [
     ("SELECT * FROM pool.patients", "SELECT *"),
     ("SELECT pseudo_id, age_band FROM pool.patients", "pseudo_id"),
+    ("SELECT age_band, MIN(pseudo_id) AS p, COUNT(*) AS n FROM pool.patients GROUP BY age_band", "inside COUNT"),
+    ("SELECT age_band, MAX(pseudo_id) AS p, COUNT(*) AS n FROM pool.patients GROUP BY age_band", "inside COUNT"),
     ("SELECT age_band, sex FROM pool.patients", "aggregated"),
     ("SELECT COUNT(*) AS n FROM pool.patients; DROP TABLE pool.patients", "one statement"),
     ("SELECT COUNT(*) AS n FROM read_csv_auto('/etc/passwd')", "not allowed"),
@@ -131,3 +133,12 @@ def test_asks_persisted_with_lineage(db):
     assert row["guard_ok"] and row["mode"] == "template"
     sources = {x["id"] for x in deps.lineage_chain(r["ask_id"])}
     assert {"pool.observations", "pool.patients"} <= sources and any(s.startswith("SQL:") for s in sources)
+
+
+def test_pseudonyms_never_leave_the_pool_even_through_an_alias(db):
+    # The guard only sees "MIN(p)", so the result-level backstop must catch it.
+    sql = ("WITH x AS (SELECT age_band, pseudo_id AS p FROM pool.patients) "
+           "SELECT age_band, MIN(p) AS first_p, COUNT(*) AS n FROM x GROUP BY age_band")
+    r = ask.ask("alias leak", sql=sql)
+    assert not r["guard"]["ok"] and r["rows"] == [] and r["sufficiency"]["verdict"] == "NOT_SUPPORTED"
+    assert any("pseudonymous" in v for v in r["guard"]["violations"])

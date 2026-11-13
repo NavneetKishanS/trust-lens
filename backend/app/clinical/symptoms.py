@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from .. import audit, lineage, llm
 from ..audit import now_iso
 from ..db import DB, get_db
+from . import red_flags
 from .facts import PatientNotFound, _row_table, as_date, day, patient_exists
 from .vocab import known_effects, symptom_vocab
 
@@ -162,6 +163,9 @@ def submit_report(patient_id: str, text: str, onset_date: date | None = None, db
     db.insert_rows("community.reports", [{"report_id": report_id, "patient_id": patient_id, "report_text": text,
                                           "onset_date": onset, "submitted_at": now}])
     items, meta = extract(text, vocab)
+    # Red flags the extractor missed still reach a clinician: add them as items (span verbatim from the text).
+    covered = {red_flags.flag_for(i.term, i.span) for i in items}
+    items += [ExtractItem(span=span, term=flag) for flag, span in red_flags.scan_text(text) if flag not in covered]
     exposures = _exposures(db, patient_id, effects)
 
     symptoms, seen = [], set()
@@ -173,6 +177,10 @@ def submit_report(patient_id: str, text: str, onset_date: date | None = None, db
         seen.add(key)
         s = classify(db, patient_id, item, entry, onset, exposures, effects)
         s["symptom_id"] = _new_id("SYM")
+        s["urgent"] = red_flags.flag_for(s["term"], s["span"]) is not None
+        if s["urgent"]:  # classification stays as the rules decided; review is forced and the reason says why
+            s["review_status"] = "pending"
+            s["reason"] = f"{red_flags.URGENT_PREFIX}red-flag symptom, review first. {s['reason']}"
         symptoms.append(s)
 
     db.insert_rows("community.symptoms", [{
@@ -191,15 +199,18 @@ def submit_report(patient_id: str, text: str, onset_date: date | None = None, db
                     model=meta.get("model"), prompt_hash=meta.get("prompt_hash"), db=db)
 
     counts = {c: sum(1 for s in symptoms if s["classification"] == c) for c in ("EXPECTED", "IN_RECORD", "NEW", "UNMAPPED")}
+    urgent = any(s["urgent"] for s in symptoms)
     seq = audit.append(f"patient:{patient_id}", "report.submitted", report_id, {
-        "symptoms": len(symptoms), **counts, "onset_date": day(onset), "extractor_model": meta.get("model"),
+        "symptoms": len(symptoms), **counts, "urgent": urgent, "onset_date": day(onset), "extractor_model": meta.get("model"),
         "extractor_fallback": meta.get("fallback"), "extractor_error": meta.get("error")}, db=db)
     for s in symptoms:
         if s["review_status"] == "pending":
             seq = audit.append("system:symptoms", "symptom.flagged", s["symptom_id"], {
-                "report_id": report_id, "term": s["term"], "classification": s["classification"], "reason": s["reason"]}, db=db)
+                "report_id": report_id, "term": s["term"], "classification": s["classification"], "reason": s["reason"],
+                "urgent": s["urgent"]}, db=db)
 
-    return {"report_id": report_id, "patient_id": patient_id, "audit_seq": seq, "symptoms": [{
+    return {"report_id": report_id, "patient_id": patient_id, "audit_seq": seq,
+            "urgent": urgent, "urgent_advice": red_flags.URGENT_ADVICE if urgent else None, "symptoms": [{
         "symptom_id": s["symptom_id"], "span": s["span"], "term": s["term"], "snomed_code": s["snomed_code"],
         "classification": s["classification"], "reason": s["reason"], "evidence": s["evidence"],
-        "review_status": s["review_status"]} for s in symptoms]}
+        "review_status": s["review_status"], "urgent": s["urgent"]} for s in symptoms]}

@@ -13,6 +13,10 @@ class Health(BaseModel):
     db: Literal["exasol", "duckdb"]
     llm: Literal["bedrock", "anthropic", "stub"]
     counts: dict[str, Optional[int]]
+    # Where things actually run, so the UI never claims "EU" it can't back up.
+    llm_region: Optional[str] = None   # AWS region for bedrock, else None
+    llm_eu_only: Optional[bool] = None  # bedrock: EU region AND no cross-region (us./global.) inference profile
+    db_location: Optional[Literal["local", "remote"]] = None
 
 
 class ErrorBody(BaseModel):
@@ -101,6 +105,7 @@ class Symptom(BaseModel):
     reason: str
     evidence: list[Evidence]
     review_status: Literal["not_required", "pending", "approved", "rejected"]
+    urgent: bool = False  # red-flag symptom (app/clinical/red_flags.py): review forced, top of the queue
 
 
 class ReportOut(BaseModel):
@@ -108,6 +113,8 @@ class ReportOut(BaseModel):
     patient_id: str
     symptoms: list[Symptom]
     audit_seq: int
+    urgent: bool = False
+    urgent_advice: Optional[str] = None  # fixed safety text when any symptom is a red flag; never LLM-written
 
 
 # ---------- oversight ----------
@@ -119,6 +126,7 @@ class ReviewItem(BaseModel):
     reason: str
     evidence: list[dict[str, Any]]
     created_at: str
+    priority: Literal["urgent", "normal"] = "normal"
 
 
 class ReviewQueue(BaseModel):

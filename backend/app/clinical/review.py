@@ -5,6 +5,7 @@ import json
 
 from .. import audit
 from ..audit import now_iso
+from .red_flags import URGENT_PREFIX
 from ..db import DB, get_db
 
 
@@ -30,15 +31,17 @@ def queue(db: DB | None = None) -> list[dict]:
         items.append({"item_id": r["sentence_id"], "kind": "sentence", "patient_id": r["patient_id"],
                       "text": r["sentence_text"], "reason": f"{r['audience']} summary — " + " | ".join(why),
                       "evidence": [{"kind": "fact", "id": f} for f in r["fact_ids"].split(",") if f],
-                      "created_at": r["created_at"]})
+                      "created_at": r["created_at"], "priority": "normal"})
     for r in db.query(
             "SELECT symptom_id, patient_id, span, term, classification, reason, evidence_json, exposure_label, created_at "
             "FROM community.symptoms WHERE review_status = 'pending'"):
         items.append({"item_id": r["symptom_id"], "kind": "symptom", "patient_id": r["patient_id"],
                       "text": f"{r['term']} (patient wrote: \"{r['span']}\")",
                       "reason": f"{r['classification']}: {r['reason']}",
-                      "evidence": json.loads(r["evidence_json"] or "[]"), "created_at": r["created_at"]})
-    return sorted(items, key=lambda i: i["created_at"], reverse=True)
+                      "evidence": json.loads(r["evidence_json"] or "[]"), "created_at": r["created_at"],
+                      "priority": "urgent" if (r["reason"] or "").startswith(URGENT_PREFIX) else "normal"})
+    items.sort(key=lambda i: i["created_at"], reverse=True)
+    return sorted(items, key=lambda i: i["priority"] != "urgent")  # stable: urgent first, newest first within each
 
 
 def decide(item_id: str, decision: str, reviewer: str, note: str = "", db: DB | None = None) -> int:

@@ -19,7 +19,7 @@ Diagrams: [`docs/architecture.md`](docs/architecture.md)
 
 ```
 FastAPI  ──►  Exasol on AWS eu-central-1 (DuckDB fallback): curated Synthea EHR · ref · community · pool views · research · gov
-   │     ──►  Claude Opus 5.5 (Bedrock EU / Anthropic API / stub)
+   │     ──►  Claude Opus 5.5 (Bedrock / Anthropic API / stub)
    │     ──►  Europe PMC REST (papers)
    └── Next.js UI (after the MVP freeze)
 ```

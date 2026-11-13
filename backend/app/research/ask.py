@@ -24,6 +24,8 @@ K = 5
 MIN_N = 20
 TIMEOUT_S = 20
 ASSOCIATION_NOTE = "Association only, not causation"
+# Backstop for the guard: a pseudonym in any result cell (e.g. laundered through a CTE alias) blocks the answer.
+_PSEUDO_ID = re.compile(r"ANON-[0-9a-f]{12}")
 PL2_NOTE = "Includes the planted synthetic signal PL2 (origin='seed_signal'); not a finding about real vaccines"
 CAUSAL = re.compile(r"\b(causes?|caused|causing|leads? to|led to|results? in|resulted in|proves?|proven|"
                     r"because of|due to)\b", re.I)
@@ -388,7 +390,13 @@ def ask(question: str, sql: str | None = None, db=None) -> dict:
             g = guard.GuardResult(False, [f"query failed: {type(e).__name__}: {str(e).splitlines()[0][:200]}"])
             result["guard"] = dict(ok=False, violations=g.violations)
             result["sufficiency"]["notes"] = [ASSOCIATION_NOTE] + g.violations
-        else:
+            raw = None
+        if raw is not None and any(_PSEUDO_ID.search(str(v)) for r in raw for v in r.values() if v is not None):
+            g = guard.GuardResult(False, ["the result contains pseudonymous patient IDs; only counts of patients may leave the pool"])
+            result["guard"] = dict(ok=False, violations=g.violations)
+            result["sufficiency"]["notes"] = [ASSOCIATION_NOTE] + g.violations
+            raw = None
+        if raw is not None:
             columns = list(raw[0].keys()) if raw else list(g.column_kinds.keys())
             raw_rows = [[r.get(c) for c in columns] for r in raw]
             rows, suppressed = anonymise(columns, raw_rows, g.column_kinds)

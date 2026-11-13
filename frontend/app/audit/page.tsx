@@ -2,7 +2,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
-import type { AuditEvent, AuditVerify, Health } from "@/lib/types";
+import { dbLabel, llmLabel, type AuditEvent, type AuditVerify, type Health } from "@/lib/types";
 import ErrorBox from "@/components/ErrorBox";
 import LineageChain from "@/components/LineageChain";
 import PageHead from "@/components/PageHead";
@@ -81,13 +81,14 @@ export default function TrustAudit() {
         </div>
         <div className={`metric ${health?.db === "exasol" ? "accent" : "amber"}`}>
           <div className="k">Database</div>
-          <div className="v" style={{ fontSize: 18 }}>{health ? (health.db === "exasol" ? "Exasol" : "DuckDB (local)") : "—"}</div>
+          <div className="v" style={{ fontSize: 18 }}>{health ? dbLabel(health) : "—"}</div>
           <div className="d">{health?.db === "exasol" ? "Data and SQL run in Exasol" : "Local fallback, not Exasol"}</div>
         </div>
         <div className={`metric ${health && health.llm !== "stub" ? "accent" : "amber"}`}>
           <div className="k">AI provider</div>
-          <div className="v" style={{ fontSize: 18 }}>{health ? (health.llm === "stub" ? "Stub mode" : health.llm === "bedrock" ? "Claude · Bedrock EU" : "Claude · Anthropic") : "—"}</div>
-          <div className="d">{health?.llm === "stub" ? "Deterministic templates, no LLM calls" : "Agents call Claude"}</div>
+          <div className="v" style={{ fontSize: 18 }}>{health ? llmLabel(health) : "—"}</div>
+          <div className="d">{health?.llm === "stub" ? "Deterministic templates, no LLM calls"
+            : health?.llm === "bedrock" && !health.llm_eu_only ? "Agents call Claude · not EU-only routing" : "Agents call Claude"}</div>
         </div>
       </div>
 

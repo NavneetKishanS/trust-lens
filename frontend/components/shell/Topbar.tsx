@@ -1,7 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 import { useApi } from "@/lib/useApi";
-import type { Health } from "@/lib/types";
+import { dbLabel, llmLabel, type Health } from "@/lib/types";
 import { crumbsFor } from "./nav";
 
 // Connection status comes straight from GET /health: never claims Exasol when the API reports DuckDB.
@@ -33,11 +33,11 @@ export default function Topbar() {
         {h && (
           <>
             <span className={`conn ${h.db === "exasol" ? "ok" : "warn"}`} title="Database the API is connected to (GET /health)">
-              <span className="led" /> Database <b>{h.db === "exasol" ? "Exasol" : "DuckDB (local)"}</b>
+              <span className="led" /> Database <b>{dbLabel(h)}</b>
             </span>
             <span className={`conn ${h.llm === "stub" ? "warn" : "ok"}`} title="LLM provider used by the agents (GET /health)">
               <span className="led" /> AI{" "}
-              <b>{h.llm === "stub" ? "stub mode" : h.llm === "bedrock" ? "Claude · Bedrock EU" : "Claude · Anthropic API"}</b>
+              <b>{llmLabel(h)}</b>
             </span>
           </>
         )}
