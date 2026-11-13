@@ -48,10 +48,17 @@ export default function SymptomReport({ patientId }: { patientId: string }) {
           <p className="small muted">
             Report <code>{result.report_id}</code> · audit #{result.audit_seq}
           </p>
+          {result.urgent_advice && (
+            <div className="urgent-banner" role="alert">
+              <b>⚠ Please read this first</b>
+              <p>{result.urgent_advice}</p>
+            </div>
+          )}
           {result.symptoms.length === 0 && <p className="muted">No symptoms recognised.</p>}
           {result.symptoms.map((s) => (
             <div key={s.symptom_id} className="edge">
               <div className="row">
+                {s.urgent && <Status tone="bad" label="Urgent: sent to a clinician first" />}
                 <b>“{s.span}”</b>
                 <span className="muted">→ {s.term}</span>
                 {s.snomed_code && <code className="small">SNOMED {s.snomed_code}</code>}

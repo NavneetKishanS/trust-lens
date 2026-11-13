@@ -577,3 +577,8 @@ details.sql[open] > summary { margin-bottom: 6px; }
 }
 .kg-zoom { position: absolute; right: 12px; top: 12px; display: flex; gap: 4px; }
 .kg-zoom button { box-shadow: var(--shadow-sm); }
+
+/* Red-flag symptoms: fixed safety message for the patient, urgent items first in Clinical Review */
+.urgent-banner { background: var(--red-100); border: 1px solid #efc0bc; border-left: 4px solid var(--red-500); color: #7d1f1a; border-radius: var(--radius-sm); padding: 12px 14px; margin: 8px 0 12px; }
+.urgent-banner p { margin: 6px 0 0; }
+.card.urgent-card { border-left: 4px solid var(--red-500); }

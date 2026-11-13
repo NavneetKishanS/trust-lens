@@ -12,7 +12,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response
 
-from . import audit, evals, lineage, llm, stubs
+from . import audit, config, evals, lineage, llm, stubs
 from . import models as m
 from .clinical import facts, patients, review, summary, symptoms
 from .db import get_db, table_count
@@ -29,7 +29,13 @@ def _stub(response: Response) -> None:
 @router.get("/health", response_model=m.Health, tags=["system"])
 def health():
     db = get_db()
-    return m.Health(db=db.dialect, llm=llm.provider(), counts={
+    provider = llm.provider()
+    region = config.AWS_REGION if provider == "bedrock" else None
+    eu_only = (region.startswith("eu-") and not config.BEDROCK_MODEL_ID.startswith(("us.", "global.", "apac."))) \
+        if region else None
+    host = (config.EXASOL_DSN or "").split(":")[0].lower()
+    location = "local" if db.dialect == "duckdb" or host in ("127.0.0.1", "localhost", "::1") else "remote"
+    return m.Health(db=db.dialect, llm=provider, llm_region=region, llm_eu_only=eu_only, db_location=location, counts={
         "patients": table_count(db, "curated.patients"),
         "papers": table_count(db, "research.papers"),
         "audit_events": table_count(db, "gov.audit_events"),

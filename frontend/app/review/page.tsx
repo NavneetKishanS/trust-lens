@@ -27,6 +27,7 @@ export default function ReviewPage() {
 
   const symptoms = items?.filter((i) => i.kind === "symptom").length ?? 0;
   const sentences = items?.filter((i) => i.kind === "sentence").length ?? 0;
+  const urgent = items?.filter((i) => i.priority === "urgent").length ?? 0;
   return (
     <div className="content">
       <PageHead
@@ -44,6 +45,7 @@ export default function ReviewPage() {
       />
       {items && (
         <div className="row" style={{ marginBottom: 12 }}>
+          {urgent > 0 && <Status tone="bad" label={`${urgent} urgent (red-flag) symptom${urgent === 1 ? "" : "s"} · shown first`} />}
           <Status tone="warn" label={`${symptoms} patient symptom${symptoms === 1 ? "" : "s"}`} />
           <Status tone="info" label={`${sentences} summary sentence${sentences === 1 ? "" : "s"}`} />
           <span className="small muted">Every decision is written to the audit chain (review.decision).</span>
@@ -52,8 +54,9 @@ export default function ReviewPage() {
       {error && <ErrorBox message={`Review queue unavailable: ${error}`} />}
       {items && items.length === 0 && <div className="card"><div className="empty">Nothing waiting for review.</div></div>}
       {items?.map((it) => (
-        <div className="card" key={it.item_id}>
+        <div className={`card${it.priority === "urgent" ? " urgent-card" : ""}`} key={it.item_id}>
           <div className="row">
+            {it.priority === "urgent" && <Status tone="bad" label="Urgent" />}
             <Status tone={it.kind === "symptom" ? "warn" : "info"} label={it.kind === "symptom" ? "Patient symptom" : "Summary sentence"} />
             <code className="small">{it.item_id}</code>
             <span className="small muted">patient {it.patient_id.slice(0, 8)}… · {it.created_at}</span>

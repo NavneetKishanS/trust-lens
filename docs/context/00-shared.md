@@ -49,7 +49,7 @@ Physician ┼─► facts → generator → critic →     papers → A1 establi
 Researcher┘ │ verifier → review queue          A2 critic → A3 sanity          lineage         │    raw · curated · ref · clinical
   (Swagger  │ symptom intake → match →         Ask the data: NL → SQL →       llm call log    │    community · pool(views) · research
   until H11)│ review → pool                    guard → k-anon → summary       review queue    │    gov · evals      (DuckDB fallback)
-            └───────────────────────────────────────────────────────────────────────────────┘──► Claude (Bedrock EU / API / stub)
+            └───────────────────────────────────────────────────────────────────────────────┘──► Claude (Bedrock / API / stub)
                                                                                                 ──► Europe PMC REST (papers)
 ```
 Detailed diagrams: `docs/architecture.md`.
@@ -171,6 +171,8 @@ Every write endpoint returns `audit_seq`.
 
 ### System
 - `GET /health` → `{"status":"ok","db":"exasol|duckdb","llm":"bedrock|anthropic|stub","counts":{"patients":1000,"papers":0}}`
+  Also returned: `llm_region` (AWS region for bedrock, else null), `llm_eu_only` (bedrock: EU region and no `us.`/`global.`/`apac.`
+  cross-region inference profile, else false; null when not bedrock), `db_location` (`local|remote`). The UI shows "EU" only when `llm_eu_only` is true.
 
 ### Clinical (Dev B)
 - `GET /patients?limit=20&vaccinated=true` → `[{"patient_id":"<uuid>","display_name":"Synthetic Name","age":57,"sex":"F","last_encounter":"2026-05-02"}]`
@@ -201,9 +203,12 @@ Every write endpoint returns `audit_seq`.
      "evidence":[{"kind":"known_effect","id":"KE-207-fatigue","source_url":"..."},{"kind":"row","id":"IMM-0000812"}],"review_status":"not_required"}],
    "audit_seq":40}
   ```
+  Also returned: top-level `urgent` (bool) and `urgent_advice` (fixed safety text, null unless urgent), and `urgent` on each symptom.
+  Red-flag symptoms are found by `app/clinical/red_flags.py` in the extracted terms and in the raw text (§8).
 
 ### Oversight (Dev B)
 - `GET /review/queue` → `{"items":[{"item_id":"SYM-...|SEN-...","kind":"symptom|sentence","patient_id":"...","text":"...","reason":"...","evidence":[...],"created_at":"..."}]}`
+  Each item also has `priority` (`urgent|normal`); urgent items come first, newest first within each group.
 - `POST /review/{item_id}` body `{"decision":"approve|reject","reviewer":"Dr. Weber","note":""}` → `{"ok":true,"audit_seq":41}`
 
 ### Research (Dev C; pool endpoints read Dev A's views)
@@ -252,6 +257,11 @@ Every write endpoint returns `audit_seq`.
 **Critic checks (summary):** every `fact_id` exists for this patient · every number in the text appears in a cited fact (±0.1, unit-aware) · every date/month matches a cited fact · no banned phrases for the audience (§8a) · no medical term that isn't in the cited facts.
 
 **§8a Banned in patient text:** "you have", "you may have", "you seem", "you might", "diagnos", "suffer", "disease" (unless in a cited fact label), "should take", "stop taking", "increase", "decrease" (as advice), any dose. Physician text: "you should", "recommend", "consider prescribing", "must".
+
+**Red flags** (`app/clinical/red_flags.py`, deterministic): chest pain, shortness of breath, palpitations, fainting, seizure, facial/throat swelling,
+confusion, one-sided weakness, coughing blood, self-harm thoughts. A red flag leaves the classification unchanged, forces `review_status=pending`,
+prefixes the reason with `URGENT: `, puts the item first in the queue and returns the fixed `urgent_advice` (112 / 116 117) to the patient.
+Red flags the extractor missed are added from the raw text (simple negations like "no chest pain" are skipped).
 
 **Symptom classification** (in this order): matches `ref.known_effects` for a product the patient received within `window_days` → `EXPECTED` · matches a condition/observation in the patient's record in the last 365 days → `IN_RECORD` · mapped to vocab but neither → `NEW` (pending) · not mapped → `UNMAPPED` (pending).
 
@@ -315,7 +325,7 @@ If a milestone slips, cut scope inside it (stub mode, templates, fewer papers). 
 2. **Patient (40 s):** simple overview, click a sentence → the lab rows. Report "tired, headache, blurred vision": two recorded, one flagged.
 3. **Physician (35 s):** same patient with codes and lineage. Toggle `inject_error`: the critic flags it. Approve the blurred-vision report in the queue.
 4. **Researcher (60 s):** graph around Moderna (CVX 207): an edge with quote + paper link + "contested" label. Ask "Is hypertension onset more common after the Moderna vaccine in patients over 40?" → SQL, suppressed cells, "association only", planted signal visible. Rare cases now show blurred vision.
-5. **Proof (30 s):** Verify chain → valid; edit one row → broken at #N. Eval numbers. "All in Exasol, in the EU."
+5. **Proof (30 s):** Verify chain → valid; edit one row → broken at #N. Eval numbers. Say where it runs as the top bar shows it (claim "in the EU" only when it shows "(EU)").
 
 ## 14. Working agreements
 

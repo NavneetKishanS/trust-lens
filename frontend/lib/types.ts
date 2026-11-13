@@ -8,7 +8,24 @@ export type Health = {
   db: "exasol" | "duckdb";
   llm: "bedrock" | "anthropic" | "stub";
   counts: { patients: number | null; papers: number | null; audit_events?: number | null };
+  llm_region?: string | null;
+  llm_eu_only?: boolean | null;
+  db_location?: "local" | "remote" | null;
 };
+
+/** AI provider label from /health: names the real region and says "EU" only when the API confirms EU-only routing. */
+export function llmLabel(h: Health): string {
+  if (h.llm === "stub") return "stub mode";
+  if (h.llm === "anthropic") return "Claude · Anthropic API";
+  if (!h.llm_region) return "Claude · Bedrock";
+  return `Claude · Bedrock ${h.llm_region}${h.llm_eu_only ? " (EU)" : ""}`;
+}
+
+/** Database label from /health: Exasol (local) vs Exasol (remote), DuckDB fallback. */
+export function dbLabel(h: Health): string {
+  if (h.db === "duckdb") return "DuckDB (local)";
+  return h.db_location === "local" ? "Exasol (local)" : "Exasol";
+}
 
 // ---------------------------------------------------------------- clinical
 export type PatientListItem = {
@@ -62,9 +79,17 @@ export type Symptom = {
   reason: string;
   evidence: Evidence[];
   review_status: "not_required" | "pending" | "approved" | "rejected";
+  urgent?: boolean;
 };
 
-export type ReportResult = { report_id: string; patient_id: string; symptoms: Symptom[]; audit_seq: number };
+export type ReportResult = {
+  report_id: string;
+  patient_id: string;
+  symptoms: Symptom[];
+  audit_seq: number;
+  urgent?: boolean;
+  urgent_advice?: string | null; // fixed safety text from the API, never LLM-written
+};
 
 // ---------------------------------------------------------------- oversight
 export type ReviewItem = {
@@ -75,6 +100,7 @@ export type ReviewItem = {
   reason: string;
   evidence: Evidence[];
   created_at: string;
+  priority?: "urgent" | "normal";
 };
 
 // ---------------------------------------------------------------- research

@@ -5,7 +5,7 @@ Rules (any violation → blocked, nothing runs):
 - every table is a known pool.* view (or a CTE defined in the query); no table functions, no other schemas
 - only whitelisted functions (aggregates, CAST, ROUND, CASE, string basics); unknown functions are blocked,
   which also stops things like getenv() or read_csv()
-- no `*` except inside COUNT(*); `pseudo_id` may only appear in the output inside an aggregate
+- no `*` except inside COUNT(*); `pseudo_id` may only appear in the output inside COUNT
 - the result must be aggregated (GROUP BY / aggregate), except reads of the pre-aggregated pool.rare_cases,
   and it must include a count column (n_… / COUNT) so small groups can be suppressed (k-anonymity)
 - LIMIT 1000 is added (or lowered to 1000)
@@ -209,8 +209,9 @@ def check_sql(sql: str, dialect: str = "duckdb") -> GuardResult:
     for sel in outer:
         for proj in sel.expressions:
             for col in proj.find_all(exp.Column):
-                if col.name.lower() == "pseudo_id" and not col.find_ancestor(exp.AggFunc):
-                    v.append("pseudo_id may not be in the output unless aggregated (e.g. COUNT(DISTINCT pseudo_id))")
+                # Only COUNT hides the value: MIN/MAX/ANY_VALUE/LISTAGG(pseudo_id) would return pseudonyms.
+                if col.name.lower() == "pseudo_id" and not isinstance(col.find_ancestor(exp.AggFunc), exp.Count):
+                    v.append("pseudo_id may only be in the output inside COUNT (e.g. COUNT(DISTINCT pseudo_id))")
                     break
 
     if not v:
