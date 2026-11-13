@@ -1,7 +1,7 @@
 """All shared §7 routes.
 
 Live: /health, /audit, /audit/verify, /lineage/{id}, and (once curated.patients exists) /patients, facts, summary.
-The rest return stubs.
+Research routes live in routes_research.py. The rest return stubs.
 
 When a slice lands, move its routes into their own module (routes_clinical.py, routes_research.py, ...).
 """
@@ -91,35 +91,7 @@ def review_decision(item_id: str, body: m.ReviewDecisionIn, response: Response):
     return m.ReviewDecisionOut(ok=True, audit_seq=0)
 
 
-# ---------- research (Dev C, M3) ----------
-@router.get("/pool/rare", response_model=m.RareCases, tags=["research"])
-def pool_rare(response: Response):
-    _stub(response)
-    return stubs.rare()
-
-
-@router.post("/research/ask", response_model=m.AskOut, tags=["research"])
-def research_ask(body: m.AskIn, response: Response):
-    _stub(response)
-    return stubs.ask(body.question)
-
-
-@router.post("/research/graph/build", response_model=m.GraphBuildOut, tags=["research"])
-def graph_build(body: m.GraphBuildIn, response: Response):
-    _stub(response)
-    return stubs.graph_build()
-
-
-@router.get("/research/graph", response_model=m.Graph, tags=["research"])
-def research_graph(response: Response, concept: str | None = None, depth: int = Query(1, ge=1, le=3)):
-    _stub(response)
-    return stubs.graph()
-
-
-@router.get("/research/edges/{edge_id}", response_model=m.EdgeDetail, tags=["research"])
-def research_edge(edge_id: str, response: Response):
-    _stub(response)
-    return stubs.edge(edge_id)
+# ---------- research (Dev C, M3): live in routes_research.py ----------
 
 
 # ---------- governance (live) ----------

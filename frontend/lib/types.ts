@@ -7,7 +7,7 @@ export type Health = {
   status: string;
   db: "exasol" | "duckdb";
   llm: "bedrock" | "anthropic" | "stub";
-  counts: { patients: number; papers: number };
+  counts: { patients: number | null; papers: number | null; audit_events?: number | null };
 };
 
 // ---------------------------------------------------------------- clinical

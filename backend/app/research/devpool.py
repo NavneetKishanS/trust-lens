@@ -7,7 +7,7 @@ patients ≥ 40) and a few approved NEW symptoms. Lets the research engine and U
     python -m app.research.devpool          # create if pool.patients doesn't exist yet
     python -m app.research.devpool --drop   # remove the stand-in (do this before Dev A's load --reset)
 
-Never point this at Exasol: it refuses unless the database is the local DuckDB fallback.
+Never point this at Exasol: it refuses unless the database is the local DuckDB.
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import random
 
+from app.db import split_statements
 from app.research import deps
 
 TABLES = ["rare_cases", "symptom_reports", "immunizations", "medications", "observations", "conditions", "patients"]
@@ -157,12 +158,13 @@ def drop(db) -> None:
 
 
 def create(db, force: bool = False, n: int = 1000) -> dict:
-    if getattr(db, "dialect", None) != "duckdb" or not isinstance(db, deps.FallbackDuckDB):
-        raise RuntimeError("devpool only runs against the local DuckDB fallback")
+    if getattr(db, "dialect", None) != "duckdb":
+        raise RuntimeError("devpool only runs against the local DuckDB (unset EXASOL_DSN)")
     if deps.table_exists(db, "pool.patients") and not force:
         return dict(created=False, reason="pool.patients already exists")
     drop(db)
-    db.execute(DDL)
+    for stmt in split_statements(DDL):
+        db.execute(stmt)
     data = generate(n)
     for table, rows in data.items():
         db.insert_rows(f"pool.{table}", rows)

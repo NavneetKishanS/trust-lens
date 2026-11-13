@@ -1,5 +1,5 @@
 """Research routes (shared §7, Dev C): /pool/rare, /research/ask, /research/graph/build, /research/graph,
-/research/edges/{edge_id}. Dev B's main.py includes this router: `app.include_router(research.router)`."""
+/research/edges/{edge_id}, plus GET /research/ask/templates. Included by app/main.py."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Query

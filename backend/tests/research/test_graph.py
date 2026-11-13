@@ -88,7 +88,7 @@ def test_build_and_read_graph(db):
 
 
 def test_api_shapes(db):
-    from app.research.devapp import app
+    from app.main import app
 
     c = TestClient(app)
     assert c.get("/health").json()["counts"]["papers"] == 3

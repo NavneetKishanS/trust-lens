@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import pytest
 
-from app.research import deps, devpool, store
+from app import db as dbmod
+from app.research import devpool, store
+from app.schema import ensure_gov_schema
 
 # Synthetic abstracts written for the tests (not real papers; real abstracts are never committed).
 PAPERS = [
@@ -29,11 +31,11 @@ PAPERS = [
 
 
 @pytest.fixture()
-def db(tmp_path, monkeypatch):
-    monkeypatch.setenv("LLM_PROVIDER", "stub")
+def db():
     store._schema_ready.clear()
-    d = deps.FallbackDuckDB(tmp_path / "test.duckdb")
-    deps.use_db(d)
+    d = dbmod.DuckDB(":memory:")
+    dbmod.set_db(d)
+    ensure_gov_schema(d)
     devpool.create(d)
     store.ensure_schema(d)
     d.insert_rows("research.papers", [dict(
@@ -43,4 +45,4 @@ def db(tmp_path, monkeypatch):
     d.insert_rows("research.citations", [dict(edge_id="CIT-90000002-90000001", citing_paper_id="PMID:90000002",
                                               cited_paper_id="PMID:90000001")])
     yield d
-    deps._db_singleton = None
+    dbmod.set_db(None)

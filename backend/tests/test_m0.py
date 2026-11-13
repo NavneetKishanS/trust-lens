@@ -139,11 +139,7 @@ STUB_CALLS = [
     ("post", "/patients/P1/reports", {"text": "tired and blurred vision"}),
     ("get", "/review/queue", None),
     ("post", "/review/SYM-1", {"decision": "approve", "reviewer": "Dr. Weber"}),
-    ("get", "/pool/rare", None),
-    ("post", "/research/ask", {"question": "hypertension after Moderna by age band"}),
-    ("post", "/research/graph/build", {"topic": "covid_vaccine_safety", "max_papers": 10}),
-    ("get", "/research/graph?concept=CVX:207", None),
-    ("get", "/research/edges/EDG-1", None),
+    # research routes are live (routes_research.py); tested in tests/research/
     ("get", "/evals/latest", None),
 ]
 

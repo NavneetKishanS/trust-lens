@@ -6,7 +6,7 @@ from app.research import ask, concepts, deps, establish, graph
 
 @pytest.fixture()
 def fake_llm(monkeypatch):
-    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(deps, "llm_provider", lambda: "anthropic")
     replies = {}
 
     def call(purpose, prompt_file, variables, output_model, effort="low"):

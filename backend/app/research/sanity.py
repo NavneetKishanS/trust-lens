@@ -87,7 +87,7 @@ def pool_check(src: str, dst: str, index: ConceptIndex, db=None) -> tuple[str, d
         sql = sql.replace("concept_code = :exposure_code", f"concept_code IN ({', '.join(repr(c) for c in codes)})")
         params.pop("exposure_code")
     try:
-        row = db.query(sql, params)[0]
+        row = deps.query_named(db, sql, params)[0]
     except Exception as e:  # noqa: BLE001 - a failed check is UNTESTABLE, never a crash
         return "UNTESTABLE", dict(reason=f"pool query failed: {type(e).__name__}", sql_source=source)
     n_exp, n_out_exp = int(row["n_exposed"] or 0), int(row["n_outcome_exposed"] or 0)

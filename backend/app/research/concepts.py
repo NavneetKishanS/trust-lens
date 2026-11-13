@@ -150,11 +150,14 @@ def load_index(db=None) -> ConceptIndex:
     if deps.table_exists(db, "ref.concepts"):
         for r in db.query("SELECT concept_id, label, synonyms FROM ref.concepts"):
             syns = [normalise(s) for s in (r.get("synonyms") or "").split(";") if s.strip()]
-            concepts[r["concept_id"]] = Concept(r["concept_id"], r.get("label") or r["concept_id"], syns)
+            concepts[r["concept_id"]] = Concept(r["concept_id"], r.get("label") or "", syns)
     for cid, label, syns in FALLBACK_CONCEPTS:
         if cid in concepts:
+            concepts[cid].label = concepts[cid].label or label
             have = concepts[cid].synonyms
             concepts[cid].synonyms = have + [s for s in syns if s not in have]
         else:
             concepts[cid] = Concept(cid, label, list(syns))
+    for c in concepts.values():
+        c.label = c.label or c.concept_id
     return ConceptIndex(concepts)
