@@ -138,15 +138,14 @@ TABLE_FILES = {
 }
 
 POOL_VIEW_SOURCES = {
-    "pool.patients": ["curated.patients", "curated.pseudo_ids"],
-    "pool.conditions": ["curated.conditions", "curated.patients", "curated.pseudo_ids"],
+    "pool.patients": ["curated.patients", "curated.pseudo_ids", "curated.age_bands"],
+    "pool.conditions": ["curated.conditions", "curated.patients", "curated.pseudo_ids", "curated.age_bands"],
     "pool.observations": ["curated.observations", "curated.pseudo_ids"],
     "pool.medications": ["curated.medications", "curated.pseudo_ids"],
-    "pool.immunizations": ["curated.immunizations", "curated.patients", "curated.pseudo_ids"],
-    "pool.symptom_reports": ["community.symptoms", "community.reports", "curated.immunizations",
-                             "ref.known_effects", "curated.pseudo_ids"],
-    "pool.rare_cases": ["community.symptoms", "community.reports", "curated.immunizations",
-                        "ref.known_effects", "curated.patients", "curated.pseudo_ids"],
+    "pool.immunizations": ["curated.immunizations", "curated.patients", "curated.pseudo_ids", "curated.age_bands"],
+    "pool.symptom_reports": ["community.symptoms", "community.reports", "curated.pseudo_ids"],
+    "pool.rare_cases": ["community.symptoms", "community.reports", "curated.patients", "curated.pseudo_ids",
+                        "curated.age_bands"],
 }
 
 
@@ -283,6 +282,16 @@ def load_pseudo_ids(db: DB) -> int:
     if len({r["pseudo_id"] for r in rows}) != len(rows):
         raise SystemExit("pseudo_id collision; pick another ANON_SALT")
     db.insert_rows("curated.pseudo_ids", rows)
+    return len(rows)
+
+
+def load_age_bands(db: DB) -> int:
+    """Whole years -> '40-49' ('90+' from 90). Starts at -1: Synthea stores at-birth events in UTC, so a
+    birth-day vaccine can land one calendar day before the birth date; that is still the 0-9 band."""
+    rows = [{"age_years": a, "age_band": "90+" if a >= 90 else f"{max(a, 0) // 10 * 10}-{max(a, 0) // 10 * 10 + 9}"}
+            for a in range(-1, 131)]
+    db.execute("DELETE FROM curated.age_bands")
+    db.insert_rows("curated.age_bands", rows)
     return len(rows)
 
 
@@ -426,6 +435,7 @@ def main(argv=None) -> int:
     counts = load_curated(db, stg, has_system)
     stg.close()
     counts["curated.pseudo_ids"] = load_pseudo_ids(db)
+    counts["curated.age_bands"] = load_age_bands(db)
 
     log("loading ref ...")
     counts["ref.lab_ranges"] = load_lab_ranges(db)

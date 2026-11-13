@@ -27,8 +27,8 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 
 ## M2 Symptom loop + review · H5–H9
 
-- [ ] `ref.known_effects`, `ref.symptom_vocab` (A, H5)
-- [ ] `db/pool_views.sql` + `db/pool_schema.md` (A, H6)
+- [x] `ref.known_effects`, `ref.symptom_vocab` (A, H5)
+- [x] `db/pool_views.sql` + `db/pool_schema.md` (A, H6)
 - [x] Symptom intake: extract → map → classify (B)
 - [x] Review queue + decisions (B)
 - [ ] `data/seed_signal.py`: PL2 signal, PL3 reports, PL4 unsafe questions (A, H7)

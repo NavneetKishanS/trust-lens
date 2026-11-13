@@ -118,6 +118,7 @@ All lowercase. Synthea columns that are reserved words get renamed on load (`dat
 - `curated.careplans(row_id, careplan_id, patient_id, encounter_id, start_date, stop_date, concept_code, description, reason_code, reason_description)`
 - `curated.allergies(row_id, patient_id, start_date, stop_date, concept_code, description, category)`
 - every curated row also has `source_file, source_line, origin` where `origin` is `synthea` or `seed_signal` (planted rows are always labelled)
+- `curated.age_bands(age_years, age_band)` — lookup used by the pool views ('40-49', '90+'); `curated.v_pool_person` and `curated.v_pool_symptoms` are the pool's helper views. None of these is readable by Ask the data
 - `curated.pseudo_ids(patient_id, pseudo_id)` — the pseudonym map (§5), computed in Python at load so the salt never sits in the DB. Lives in `curated`, so Ask the data can't read it
 - DDL: `db/schema.sql` (raw, curated, ref, community, pool, research, evals); `db/gov_schema.sql` + `db/clinical_schema.sql` (Dev B). Timestamps the API writes are ISO-8601 text
 - **Exasol reserved words in our names:** `ref`, `text`, `section`, `state`, `low`, `high`, `transform`. `app/db.py` quotes them automatically on Exasol; write them lowercase and unquoted. Don't introduce new ones (`backend/tests/exasol_reserved_words.txt`, checked by `test_data.py`)

@@ -158,3 +158,53 @@ def test_ref_vocab_is_consistent():
     effects = list(csv.DictReader(open(config.REPO_ROOT / "db/ref/known_effects.csv", encoding="utf-8")))
     assert {e["effect_term"] for e in effects} <= terms
     assert all(e["source_url"].startswith("https://www.ema.europa.eu/") for e in effects)
+
+
+# ---------- pool views (A4) ----------
+@pytest.fixture()
+def pool_db(db, monkeypatch):
+    monkeypatch.setenv("ANON_SALT", "test-salt")
+    load_fixture(db)
+    load.load_pseudo_ids(db)
+    load.load_age_bands(db)
+    assert load.create_pool_views(db)
+    return db
+
+
+def test_pool_has_no_identifiers(pool_db):
+    db = pool_db
+    ids = {r["patient_id"] for r in db.query("SELECT patient_id FROM curated.patients")}
+    names = {r["display_name"] for r in db.query("SELECT display_name FROM curated.patients")}
+    for view in ["patients", "conditions", "observations", "medications", "immunizations", "symptom_reports",
+                 "rare_cases"]:
+        rows = db.query(f"SELECT * FROM pool.{view}")
+        blob = json.dumps(rows, default=str)
+        assert not any(i in blob for i in ids | names), view
+        assert not re.search(r"\d{4}-\d{2}-\d{2}", blob), f"exact date in pool.{view}"
+        assert not re.search(r"\b(OBS|ENC|CON|MED|IMM|CPL|ALG|PAT)-\d{7}\b", blob), f"row id in pool.{view}"
+    pats = db.query("SELECT pseudo_id, age_band FROM pool.patients ORDER BY pseudo_id")
+    assert all(re.fullmatch(r"ANON-[0-9a-f]{12}", p["pseudo_id"]) for p in pats)
+    assert db.query("SELECT age_band_at_dose, imm_month FROM pool.immunizations WHERE concept_code = '207'") == [
+        {"age_band_at_dose": "50-59", "imm_month": "2026-10"}]
+
+
+def test_symptom_loop_reaches_pool_views(pool_db):
+    from datetime import date
+
+    from app.clinical import review, symptoms
+    from app.research import pool
+
+    r = symptoms.submit_report(P1, "Since my booster I'm tired, have a headache and blurred vision.", date(2026, 10, 30))
+    bv = next(s for s in r["symptoms"] if s["term"] == "blurred vision")
+    reports = pool_db.query("SELECT term, classification, exposure_code, days_since_exposure, report_month "
+                            "FROM pool.symptom_reports ORDER BY term")
+    assert [x["term"] for x in reports] == ["fatigue", "headache"]  # pending NEW is not in the pool
+    assert reports[0]["exposure_code"] == "207" and reports[0]["days_since_exposure"] == 2
+    assert pool.rare_cases()["items"] == []
+
+    review.decide(bv["symptom_id"], "approve", "Dr. Weber", "keep for research")
+    assert [x["term"] for x in pool_db.query("SELECT term FROM pool.symptom_reports ORDER BY term")] == \
+        ["blurred vision", "fatigue", "headache"]
+    assert pool.rare_cases() == {"k": 5, "items": [{
+        "term": "blurred vision", "exposure_label": "Moderna (CVX 207)", "age_band": "50-59", "sex": "F",
+        "n_reports": "<5", "first_month": "2026-10"}]}
