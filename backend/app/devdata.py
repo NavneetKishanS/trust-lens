@@ -2,40 +2,18 @@
 
     .venv/bin/python -m app.devdata          (from backend/, or with --app-dir semantics: cd backend first)
 
-Creates curated.* tables with the shared §6 columns and 3 synthetic patients, every row labelled
-origin='dev_fixture'. It refuses to touch a database that already has curated.patients unless --force.
+Creates the schema (db/schema.sql via Dev A's loader), inserts 3 synthetic patients into curated.*, every row
+labelled origin='dev_fixture', and loads the ref tables from db/ref/*.csv. Refuses to touch a database whose
+curated.patients already has rows unless --force.
 """
 from __future__ import annotations
 
 import argparse
 
 from .db import DB, get_db
-from .schema import table_exists
 
-DDL = {
-    "curated.patients": "row_id VARCHAR(20), patient_id VARCHAR(100), display_name VARCHAR(200), birth_date DATE, "
-                        "death_date DATE, sex VARCHAR(10), race VARCHAR(50), ethnicity VARCHAR(50), state VARCHAR(50)",
-    "curated.encounters": "row_id VARCHAR(20), encounter_id VARCHAR(100), patient_id VARCHAR(100), start_ts TIMESTAMP, "
-                          "stop_ts TIMESTAMP, encounter_class VARCHAR(50), concept_code VARCHAR(50), description VARCHAR(500), "
-                          "reason_code VARCHAR(50), reason_description VARCHAR(500), provider_name VARCHAR(200), "
-                          "organization_name VARCHAR(200)",
-    "curated.conditions": "row_id VARCHAR(20), patient_id VARCHAR(100), encounter_id VARCHAR(100), start_date DATE, "
-                          "stop_date DATE, code_system VARCHAR(20), concept_code VARCHAR(50), description VARCHAR(500)",
-    "curated.observations": "row_id VARCHAR(20), patient_id VARCHAR(100), encounter_id VARCHAR(100), obs_date TIMESTAMP, "
-                            "category VARCHAR(50), concept_code VARCHAR(50), description VARCHAR(500), value_text VARCHAR(200), "
-                            "value_num DOUBLE, units VARCHAR(50), value_type VARCHAR(20)",
-    "curated.medications": "row_id VARCHAR(20), patient_id VARCHAR(100), encounter_id VARCHAR(100), start_ts TIMESTAMP, "
-                           "stop_ts TIMESTAMP, concept_code VARCHAR(50), description VARCHAR(500), reason_code VARCHAR(50), "
-                           "reason_description VARCHAR(500)",
-    "curated.immunizations": "row_id VARCHAR(20), patient_id VARCHAR(100), encounter_id VARCHAR(100), imm_date TIMESTAMP, "
-                             "concept_code VARCHAR(50), description VARCHAR(500)",
-    "curated.careplans": "row_id VARCHAR(20), careplan_id VARCHAR(100), patient_id VARCHAR(100), encounter_id VARCHAR(100), "
-                         "start_date DATE, stop_date DATE, concept_code VARCHAR(50), description VARCHAR(500), "
-                         "reason_code VARCHAR(50), reason_description VARCHAR(500)",
-    "curated.allergies": "row_id VARCHAR(20), patient_id VARCHAR(100), start_date DATE, stop_date DATE, "
-                         "concept_code VARCHAR(50), description VARCHAR(500), category VARCHAR(50)",
-}
-PROVENANCE = "source_file VARCHAR(200), source_line DECIMAL(18,0), origin VARCHAR(20)"
+TABLES = ["curated.patients", "curated.encounters", "curated.conditions", "curated.observations",
+          "curated.medications", "curated.immunizations", "curated.careplans", "curated.allergies"]
 
 P1, P2, P3 = ("dev-0001-anna", "dev-0002-bernd", "dev-0003-chiara")
 MODERNA = "SARS-COV-2 (COVID-19) vaccine, mRNA, spike protein, LNP, preservative free, 100 mcg/0.5mL dose"
@@ -65,14 +43,14 @@ def rows() -> dict[str, list[tuple]]:
             ("CON-0000002", P2, "e4", "2019-05-20", None, "SNOMED", "59621000", "Essential hypertension (disorder)"),
         ],
         "curated.observations": [
-            ("OBS-0000001", P1, "e1", "2025-03-11 09:10:00", "laboratory", "2339-0", "Glucose", "142", 142.0, "mg/dL", "numeric"),
-            ("OBS-0000002", P1, "e2", "2025-10-02 10:05:00", "laboratory", "2339-0", "Glucose", "91", 91.0, "mg/dL", "numeric"),
-            ("OBS-0000003", P1, "e1", "2025-03-11 09:10:00", "laboratory", "4548-4", "Hemoglobin A1c/Hemoglobin.total in Blood", "6.1", 6.1, "%", "numeric"),
-            ("OBS-0000004", P1, "e2", "2025-10-02 10:05:00", "laboratory", "4548-4", "Hemoglobin A1c/Hemoglobin.total in Blood", "5.5", 5.5, "%", "numeric"),
-            ("OBS-0000005", P1, "e2", "2025-10-02 10:05:00", "vital-signs", "8480-6", "Systolic Blood Pressure", "118", 118.0, "mm[Hg]", "numeric"),
-            ("OBS-0000006", P2, "e4", "2026-02-03 11:10:00", "vital-signs", "8480-6", "Systolic Blood Pressure", "148", 148.0, "mm[Hg]", "numeric"),
-            ("OBS-0000007", P2, "e4", "2026-02-03 11:10:00", "laboratory", "2093-3", "Total Cholesterol", "231", 231.0, "mg/dL", "numeric"),
-            ("OBS-0000008", P3, "e5", "2026-06-15 14:05:00", "laboratory", "718-7", "Hemoglobin [Mass/volume] in Blood", "11.2", 11.2, "g/dL", "numeric"),
+            ("OBS-0000001", P1, "e1", "2025-03-11", "laboratory", "2339-0", "Glucose", "142", 142.0, "mg/dL", "numeric"),
+            ("OBS-0000002", P1, "e2", "2025-10-02", "laboratory", "2339-0", "Glucose", "91", 91.0, "mg/dL", "numeric"),
+            ("OBS-0000003", P1, "e1", "2025-03-11", "laboratory", "4548-4", "Hemoglobin A1c/Hemoglobin.total in Blood", "6.1", 6.1, "%", "numeric"),
+            ("OBS-0000004", P1, "e2", "2025-10-02", "laboratory", "4548-4", "Hemoglobin A1c/Hemoglobin.total in Blood", "5.5", 5.5, "%", "numeric"),
+            ("OBS-0000005", P1, "e2", "2025-10-02", "vital-signs", "8480-6", "Systolic Blood Pressure", "118", 118.0, "mm[Hg]", "numeric"),
+            ("OBS-0000006", P2, "e4", "2026-02-03", "vital-signs", "8480-6", "Systolic Blood Pressure", "148", 148.0, "mm[Hg]", "numeric"),
+            ("OBS-0000007", P2, "e4", "2026-02-03", "laboratory", "2093-3", "Total Cholesterol", "231", 231.0, "mg/dL", "numeric"),
+            ("OBS-0000008", P3, "e5", "2026-06-15", "laboratory", "718-7", "Hemoglobin [Mass/volume] in Blood", "11.2", 11.2, "g/dL", "numeric"),
         ],
         "curated.medications": [
             ("MED-0000001", P2, "e4", "2019-05-20 11:00:00", None, "314076", "lisinopril 10 MG Oral Tablet", "59621000",
@@ -81,8 +59,8 @@ def rows() -> dict[str, list[tuple]]:
              "24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet", "15777000", "Prediabetes (finding)"),
         ],
         "curated.immunizations": [
-            ("IMM-0000001", P1, "e3", "2026-10-28 08:40:00", "207", MODERNA),
-            ("IMM-0000002", P2, "e4", "2026-02-03 11:30:00", "140", "Influenza, seasonal, injectable, preservative free"),
+            ("IMM-0000001", P1, "e3", "2026-10-28", "207", MODERNA),
+            ("IMM-0000002", P2, "e4", "2026-02-03", "140", "Influenza, seasonal, injectable, preservative free"),
         ],
         "curated.careplans": [
             ("CPL-0000001", "cp1", P1, "e1", "2025-03-11", None, "698360004", "Diabetes self management plan",
@@ -97,23 +75,22 @@ def rows() -> dict[str, list[tuple]]:
 
 
 def load(db: DB | None = None, force: bool = False) -> bool:
+    """Create the schema (Dev A's schema.sql + Dev B's tables), insert the fixture, load the ref CSVs."""
+    from . import load as loader  # Dev A's loader: schema + ref tables
+
     db = db or get_db()
-    if table_exists(db, "curated.patients") and not force:
+    loader.create_schema(db, reset=False)
+    if db.query("SELECT COUNT(*) AS n FROM curated.patients")[0]["n"] and not force:
         return False
-    try:
-        db.execute("CREATE SCHEMA IF NOT EXISTS curated")
-    except Exception as exc:
-        if "exist" not in str(exc).lower():
-            raise
-    for table, cols in DDL.items():
-        if table_exists(db, table):
-            db.execute(f"DROP TABLE {table}")
-        db.execute(f"CREATE TABLE {table} ({cols}, {PROVENANCE})")
+    for table in TABLES:
+        db.execute(f"DELETE FROM {table}")
     for table, data in rows().items():
-        n_cols = DDL[table].count(",") + 1
-        placeholders = ", ".join("?" for _ in range(n_cols + 3))
         for line, row in enumerate(data, start=1):
-            db.execute(f"INSERT INTO {table} VALUES ({placeholders})", [*row, "dev_fixture.py", line, "dev_fixture"])
+            values = [*row, "dev_fixture.py", line, "dev_fixture"]
+            db.execute(f"INSERT INTO {table} VALUES ({', '.join('?' for _ in values)})", values)
+    loader.load_lab_ranges(db)
+    loader.load_symptom_vocab(db)
+    loader.load_known_effects(db)
     return True
 
 
@@ -121,4 +98,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--force", action="store_true", help="replace existing curated tables")
     args = parser.parse_args()
-    print("loaded dev fixture" if load(force=args.force) else "curated.patients exists; use --force to replace")
+    print("loaded dev fixture" if load(force=args.force) else "curated.patients has rows; use --force to replace")

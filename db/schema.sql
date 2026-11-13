@@ -1,7 +1,4 @@
--- TrustLens schema (shared contract §6), Dev A. Runs on DuckDB and Exasol via app.db.run_script.
--- gov and clinical tables are Dev B's: db/gov_schema.sql, db/clinical_schema.sql (app.schema.ensure_schema).
--- Timestamps written by the API (submitted_at, reviewed_at, fetched_at, created_at) are ISO-8601 text,
--- the same convention as Dev B's tables; Synthea timestamps in curated are real TIMESTAMP columns.
+-- TrustLens schema (shared contract §6). Runs on DuckDB and Exasol via app.db.run_script.
 -- Portable types only. Names that are reserved in Exasol (ref, text, section, state, low, high,
 -- transform) are quoted automatically by app/db.py on Exasol; keep them lowercase and unquoted here.
 -- Idempotent: CREATE ... IF NOT EXISTS. `python -m app.load --reset` drops all schemas first.
@@ -9,9 +6,11 @@
 CREATE SCHEMA IF NOT EXISTS raw;
 CREATE SCHEMA IF NOT EXISTS curated;
 CREATE SCHEMA IF NOT EXISTS ref;
+CREATE SCHEMA IF NOT EXISTS clinical;
 CREATE SCHEMA IF NOT EXISTS community;
 CREATE SCHEMA IF NOT EXISTS pool;
 CREATE SCHEMA IF NOT EXISTS research;
+CREATE SCHEMA IF NOT EXISTS gov;
 CREATE SCHEMA IF NOT EXISTS evals;
 
 -- ============================================================================================
@@ -188,32 +187,10 @@ CREATE TABLE IF NOT EXISTS ref.concepts (
 );
 
 -- ============================================================================================
--- community (Dev B writes; seed_signal.py writes planted reports with origin='seed_signal')
+-- clinical (Dev B writes)
 -- ============================================================================================
-
-CREATE TABLE IF NOT EXISTS community.reports (
-    report_id     VARCHAR(40) NOT NULL,
-    patient_id    VARCHAR(64) NOT NULL,
-    text          VARCHAR(4000),
-    onset_date    DATE,
-    submitted_at  VARCHAR(40),
-    origin        VARCHAR(20) DEFAULT 'patient'   -- 'patient' | 'seed_signal'
-);
-
-CREATE TABLE IF NOT EXISTS community.symptoms (
-    symptom_id      VARCHAR(40) NOT NULL,
-    report_id       VARCHAR(40) NOT NULL,
-    patient_id      VARCHAR(64) NOT NULL,
-    span            VARCHAR(500),
-    term            VARCHAR(100),
-    snomed_code     VARCHAR(20),
-    classification  VARCHAR(20),     -- EXPECTED | IN_RECORD | NEW | UNMAPPED
-    reason          VARCHAR(2000),
-    evidence_json   VARCHAR(20000),
-    review_status   VARCHAR(20),     -- not_required | pending | approved | rejected
-    reviewed_by     VARCHAR(100),
-    reviewed_at     VARCHAR(40)
-);
+-- clinical.* and community.* are defined in db/clinical_schema.sql and db/community_schema.sql
+-- (created by app.schema.ensure_schema, which app.load.create_schema also runs). One definition per table.
 
 -- ============================================================================================
 -- research (Dev C writes)
@@ -229,7 +206,7 @@ CREATE TABLE IF NOT EXISTS research.papers (
     abstract_text  VARCHAR(2000000),
     source_url     VARCHAR(500),
     query          VARCHAR(1000),
-    fetched_at     VARCHAR(40)
+    fetched_at     TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS research.edges (
@@ -248,7 +225,7 @@ CREATE TABLE IF NOT EXISTS research.edges (
     pool_status         VARCHAR(20),
     pool_evidence_json  VARCHAR(20000),
     status              VARCHAR(20),
-    created_at          VARCHAR(40)
+    created_at          TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS research.citations (
@@ -268,8 +245,13 @@ CREATE TABLE IF NOT EXISTS research.asks (
     verdict           VARCHAR(20),
     summary_json      VARCHAR(2000000),
     mode              VARCHAR(20),
-    created_at        VARCHAR(40)
+    created_at        TIMESTAMP
 );
+
+-- ============================================================================================
+-- gov (Dev B writes through audit.py / lineage.py)
+-- ============================================================================================
+-- gov.* is defined in db/gov_schema.sql (created by app.schema.ensure_schema).
 
 -- ============================================================================================
 -- evals (M5)
@@ -287,5 +269,5 @@ CREATE TABLE IF NOT EXISTS evals.runs (
     metric_name   VARCHAR(100),
     metric_value  DOUBLE,
     detail_json   VARCHAR(2000000),
-    created_at    VARCHAR(40)
+    created_at    TIMESTAMP
 );

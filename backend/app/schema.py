@@ -6,7 +6,7 @@ import re
 from . import config
 from .db import DB, split_statements
 
-SCHEMA_FILES = [config.REPO_ROOT / "db" / "gov_schema.sql", config.REPO_ROOT / "db" / "clinical_schema.sql"]
+SCHEMA_FILES = [config.REPO_ROOT / "db" / f"{name}_schema.sql" for name in ("gov", "clinical", "community")]
 
 
 def table_exists(db: DB, table: str) -> bool:

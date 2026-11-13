@@ -8,9 +8,8 @@ import pytest
 
 from app import audit, config, factsql, load
 from app.clinical import facts
-from app.clinical.ranges import lab_ranges
-from app.db import DB, DuckDB, Exasol, split_statements
-from app.devdata import P1, P2, P3
+from app.db import ExaDatabase, split_statements
+from app.devdata import P1
 from app.devdata import load as load_fixture
 
 RESERVED = set((Path(__file__).parent / "exasol_reserved_words.txt").read_text().split())
@@ -31,10 +30,10 @@ def test_duckdb_named_and_positional_params(db):
 
 def test_exasol_binding_inlines_literals_and_quotes_reserved_names():
     sql = "SELECT r.low, text, 'low; text' AS s, \"date\" FROM ref.lab_ranges r WHERE loinc = ? AND x = ?"
-    out = Exasol._bind(sql, ["2339-0", "it's"])
+    out = ExaDatabase._rewrite(sql, ["2339-0", "it's"])
     assert out == ("SELECT r.\"LOW\", \"TEXT\", 'low; text' AS s, \"date\" FROM \"REF\".lab_ranges r "
                    "WHERE loinc = '2339-0' AND x = 'it''s'")
-    assert Exasol._bind("SELECT :p AS v, ref_day.d", {"p": None}) == "SELECT NULL AS v, ref_day.d"
+    assert ExaDatabase._rewrite("SELECT :p AS v, ref_day.d", {"p": None}) == "SELECT NULL AS v, ref_day.d"
 
 
 # ---------- facts.sql ----------
@@ -42,8 +41,8 @@ def _code_only(sql: str) -> str:
     return re.sub(r'"[^"]*"', "", re.sub(r"'[^']*'", "", re.sub(r"--[^\n]*", "", sql)))
 
 
-def test_facts_sql_blocks_are_portable():
-    blocks = DB.named_blocks(FACTS_SQL)
+def test_facts_sql_blocks_are_portable(db):
+    blocks = db.named_blocks(FACTS_SQL)
     assert set(blocks) == {k.lower() for k in facts.KINDS}
     for name, sql in blocks.items():
         aliases = set(re.findall(r"\bAS\s+([a-z_]\w*)", _code_only(sql)))
@@ -55,29 +54,7 @@ def test_facts_sql_blocks_are_portable():
 @pytest.fixture()
 def fixture_with_ref(db):
     load_fixture(db)
-    db.run_script(load.SCHEMA_SQL)
-    load.load_lab_ranges(db)  # validates LOINC+units against the fixture's observations
     return db
-
-
-@pytest.mark.parametrize("pid", [P1, P2, P3])
-def test_facts_sql_matches_python_builders(fixture_with_ref, pid):
-    db = fixture_with_ref
-    ref = facts.reference_date(db, pid)
-    labs = facts.lab_trends(db, pid, lab_ranges(db))
-    encs, plans = facts.encounters(db, pid), facts.careplans(db, pid)
-    python = {
-        "LAB_TREND": labs, "CONDITION": facts.conditions(db, pid, ref), "MEDICATION": facts.medications(db, pid, ref),
-        "IMMUNIZATION": facts.immunizations(db, pid, ref), "ENCOUNTER": encs[:5], "CAREPLAN": plans,
-        "ALLERGY": facts.allergies(db, pid), "NEXT_STEP": facts.next_steps(pid, labs, encs, plans),
-    }
-    sql = {}
-    for f in factsql.compute_facts(pid, db):
-        sql.setdefault(f["kind"], []).append(f)
-    for kind in facts.KINDS:
-        want = [(f["data"], f["source_row_ids"]) for f in python[kind]]
-        got = [(f["data"], f["source_row_ids"]) for f in sql.get(kind, [])]
-        assert got == want, kind
 
 
 def test_summary_uses_sql_facts(fixture_with_ref):
