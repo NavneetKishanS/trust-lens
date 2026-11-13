@@ -40,9 +40,9 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 - [ ] ≥ 50 papers in `research.papers`, offline cache (C, H4)
 - [ ] Ask the data: templates + guard + k-anon + sufficiency (C, H6)
 - [ ] Ask the data: LLM text-to-SQL + cited summary (C, H8)
-- [ ] `ref.concepts` with synonyms (A, H7)
+- [x] `ref.concepts` with synonyms (A, H7)
 - [ ] A1 establish + A2 critic + citation edges (C, H9)
-- [ ] `exposure_outcome_rate` pool SQL (A, H9)
+- [x] `exposure_outcome_rate` pool SQL (A, H9)
 - [ ] A3 sanity: literature + pool (C, H11)
 - [ ] Exasol live with everything; DuckDB still works (A, H10)
 

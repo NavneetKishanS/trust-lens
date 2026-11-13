@@ -230,3 +230,15 @@ def test_seed_phrases_map_to_the_vocabulary():
     assert set(seed.EXPECTED_WEIGHTS) <= set(seed.PHRASES)
     assert len(seed.UNSAFE_QUESTIONS) == 5 and seed._band(95) == "90+" and seed._band(47) == "40-49"
     assert "NEW" not in [t for t, _ in seed.PL3_NEW]
+
+
+# ---------- exposure_outcome_rate (A6) ----------
+def test_exposure_outcome_rate_reads_pool_only_and_counts(pool_db):
+    sql = pool_db.named_blocks("db/pool_queries.sql")["exposure_outcome_rate"]
+    assert set(re.findall(r"\b([a-z_]\w*)\.[a-z_]", _code_only(sql))) <= {"pool", "a", "c", "e", "o", "p", "pr", "x"}
+    assert "concept_code = :exposure_code" in sql  # research/sanity.py rewrites this for vaccine classes
+    # fixture: P1 (F, 58) got Moderna 2026-10; P2 has hypertension since 2019 (prevalent, excluded)
+    row = pool_db.query(sql, {"exposure_code": "207", "outcome_code": "59621000", "window_days": 90})[0]
+    assert row == {"n_exposed": 1, "n_outcome_exposed": 0, "n_unexposed": 1, "n_outcome_unexposed": 0}
+    none = pool_db.query(sql, {"exposure_code": "999", "outcome_code": "59621000", "window_days": 90})[0]
+    assert none == {"n_exposed": 0, "n_outcome_exposed": 0, "n_unexposed": 0, "n_outcome_unexposed": 0}
