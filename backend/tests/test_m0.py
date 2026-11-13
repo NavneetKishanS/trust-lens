@@ -137,9 +137,7 @@ STUB_CALLS = [
     ("get", "/patients/P1/summary?audience=patient", None),
     ("get", "/patients/P1/summary?audience=physician&inject_error=true", None),
     ("post", "/patients/P1/reports", {"text": "tired and blurred vision"}),
-    ("get", "/review/queue", None),
-    ("post", "/review/SYM-1", {"decision": "approve", "reviewer": "Dr. Weber"}),
-    # research routes are live (routes_research.py); tested in tests/research/
+    # review routes are live (tests/test_m2.py); research routes are live (tests/research/)
     ("get", "/evals/latest", None),
 ]
 

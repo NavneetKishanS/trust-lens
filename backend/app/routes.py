@@ -1,7 +1,8 @@
 """All shared §7 routes.
 
-Live: /health, /audit, /audit/verify, /lineage/{id}, and (once curated.patients exists) /patients, facts, summary.
-Research routes live in routes_research.py. The rest return stubs.
+Live: /health, /audit, /audit/verify, /lineage/{id}, /review/*, and (once curated.patients exists)
+/patients, facts, summary, reports. Research routes (incl. /pool/rare) live in routes_research.py.
+The rest return stubs.
 
 When a slice lands, move its routes into their own module (routes_clinical.py, routes_research.py, ...).
 """
@@ -13,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 
 from . import audit, lineage, llm, stubs
 from . import models as m
-from .clinical import facts, patients, summary
+from .clinical import facts, patients, review, summary, symptoms
 from .db import get_db, table_count
 from .schema import table_exists
 
@@ -74,21 +75,29 @@ def patient_summary(patient_id: str, response: Response,
 
 @router.post("/patients/{patient_id}/reports", response_model=m.ReportOut, tags=["clinical"])
 def submit_report(patient_id: str, body: m.ReportIn, response: Response):
-    _stub(response)
-    return stubs.report(patient_id)
+    if not _has_curated():
+        _stub(response)
+        return stubs.report(patient_id)
+    try:
+        return symptoms.submit_report(patient_id, body.text, body.onset_date)
+    except facts.PatientNotFound:
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
 
 # ---------- oversight (Dev B, M2) ----------
 @router.get("/review/queue", response_model=m.ReviewQueue, tags=["oversight"])
-def review_queue(response: Response):
-    _stub(response)
-    return stubs.review_queue()
+def review_queue():
+    return {"items": review.queue()}
 
 
 @router.post("/review/{item_id}", response_model=m.ReviewDecisionOut, tags=["oversight"])
-def review_decision(item_id: str, body: m.ReviewDecisionIn, response: Response):
-    _stub(response)
-    return m.ReviewDecisionOut(ok=True, audit_seq=0)
+def review_decision(item_id: str, body: m.ReviewDecisionIn):
+    try:
+        return {"ok": True, "audit_seq": review.decide(item_id, body.decision, body.reviewer, body.note)}
+    except review.ItemNotFound:
+        raise HTTPException(status_code=404, detail=f"No review item {item_id}")
+    except review.AlreadyDecided as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 # ---------- research (Dev C, M3): live in routes_research.py ----------

@@ -438,7 +438,11 @@ def _persist(db, result: dict, llm_meta: dict, g: guard.GuardResult) -> None:
 def get_rare(db=None) -> dict:
     db = db or deps.get_db()
     if not deps.table_exists(db, "pool.rare_cases"):
-        return dict(k=K, items=[])
+        # Until Dev A's pool views exist: aggregate clinician-approved NEW symptoms straight from
+        # community.symptoms (same columns, same k-anonymity), so approvals reach researchers.
+        from app.research import pool
+
+        return pool.rare_cases(db)
     items = []
     for r in db.query("SELECT term, exposure_label, age_band, sex, n_reports, first_month FROM pool.rare_cases "
                       "ORDER BY first_month DESC, term"):

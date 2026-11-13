@@ -1,6 +1,7 @@
 """Pydantic models = the exact JSON shapes of shared §7. Change them only together with 00-shared.md."""
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -82,7 +83,7 @@ class Summary(BaseModel):
 
 class ReportIn(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
-    onset_date: Optional[str] = None
+    onset_date: Optional[date] = None
 
 
 class Evidence(BaseModel):
