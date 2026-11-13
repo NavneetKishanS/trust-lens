@@ -458,6 +458,15 @@ _db: Database | None = None
 _db_lock = threading.Lock()
 
 
+def _exasol_password() -> str:
+    """EXASOL_PASSWORD, or the contents of EXASOL_PASSWORD_FILE (e.g. the starter kit's
+    ~/.exasol-starter-kit/credentials/personal_sys_password), so the secret never has to be copied into .env."""
+    path = os.getenv("EXASOL_PASSWORD_FILE", "").strip()
+    if path:
+        return Path(path).expanduser().read_text(encoding="utf-8").strip()
+    return os.getenv("EXASOL_PASSWORD", "")
+
+
 def get_db() -> Database:
     """Exasol if EXASOL_DSN is set, else DuckDB at DUCKDB_PATH (default data/trustlens.duckdb)."""
     global _db
@@ -465,7 +474,7 @@ def get_db() -> Database:
         if _db is None:
             dsn = os.getenv("EXASOL_DSN", "").strip()
             if dsn:
-                _db = ExaDatabase(dsn, os.getenv("EXASOL_USER", "sys"), os.getenv("EXASOL_PASSWORD", ""))
+                _db = ExaDatabase(dsn, os.getenv("EXASOL_USER", "sys"), _exasol_password())
             else:
                 _db = DuckDatabase(repo_path(os.getenv("DUCKDB_PATH", "data/trustlens.duckdb")))
         return _db

@@ -22,5 +22,10 @@ DUCKDB_PATH = env("DUCKDB_PATH", str(REPO_ROOT / "data" / "trustlens.duckdb"))
 
 LLM_PROVIDER = env("LLM_PROVIDER", "stub").lower()
 AWS_REGION = env("AWS_REGION", "eu-central-1")
+# Bedrock: "runtime" = classic bedrock-runtime client (works in the AWS Workshop Studio sandbox, needs an inference
+# profile ID such as us.anthropic.claude-opus-5-5); "mantle" = the newer Messages-API endpoint (anthropic.claude-opus-5-5).
+BEDROCK_CLIENT = env("BEDROCK_CLIENT", "runtime").lower()
+BEDROCK_MODEL_ID = env("BEDROCK_MODEL_ID",
+                       "anthropic.claude-opus-5-5" if BEDROCK_CLIENT == "mantle" else "us.anthropic.claude-opus-5-5")
 
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
