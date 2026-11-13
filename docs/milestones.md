@@ -55,11 +55,11 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 
 ## M4 Minimal UI · H11–H16 (C leads, A + B help)
 
-- [ ] Patient page + lineage drawer + symptom box
-- [ ] Physician page + `inject_error` toggle
-- [ ] Review queue
-- [ ] Researcher: Ask, rare cases, edge list (graph view if time)
-- [ ] Audit page + Verify chain
+- [ ] Patient page + lineage drawer + symptom box — built to the §7 contract; waiting for Dev B's endpoints
+- [ ] Physician page + `inject_error` toggle — built; waiting for Dev B's endpoints
+- [ ] Review queue — built; waiting for Dev B's endpoints
+- [x] Researcher: Ask, rare cases, edge list (graph view if time) — edge list, no force graph
+- [x] Audit page + Verify chain
 
 ## M5 Proof · H14–H17
 

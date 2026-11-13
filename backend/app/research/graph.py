@@ -160,7 +160,9 @@ def pool_patient_count(db, concept_id: str) -> str | None:
              "LOINC": "pool.observations"}.get(system)
     if not table or not deps.table_exists(db, table):
         return None
-    n = db.query(f"SELECT COUNT(DISTINCT pseudo_id) AS n FROM {table} WHERE concept_code = ?", [code])[0]["n"]
+    codes = [m.split(":", 1)[1] for m in concepts_mod.CLASS_MEMBERS.get(concept_id, [concept_id])]
+    n = db.query(f"SELECT COUNT(DISTINCT pseudo_id) AS n FROM {table} WHERE concept_code IN "
+                 f"({', '.join('?' for _ in codes)})", codes)[0]["n"]
     return "<5" if n < sanity.K else str(n)
 
 

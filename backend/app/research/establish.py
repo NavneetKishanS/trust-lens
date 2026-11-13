@@ -62,6 +62,8 @@ _POPULATION = re.compile(
     r"adults? with|children with|women with|men with|presence of|such as|comorbidit\w*|pre-existing|underlying|"
     r"living with|suffering from|affected by|treatment for|diagnosed with|chronic illness\w*)\W+(?:[\w-]+\W+){0,6}$",
     re.I)
+_NULL_FINDING = re.compile(r"\b(no|not|did not|was not|were not)\s+(\w+\s+){0,2}(associat\w*|evidence|increased?|"
+                          r"elevated|significant|higher|linked|related|difference|excess|risk|signal)", re.I)
 _RELATION_CUE = re.compile(r"\b(after|following|associated|association|risks?|increase\w*|elevat\w*|reported|"
                            r"occurr\w*|develop\w*|induc\w*|incidence|onset|linked|complications?|adverse|"
                            r"reactions?|rise|events?)\b", re.I)
@@ -90,7 +92,13 @@ def stub_relations(abstract: str, index: ConceptIndex) -> list[dict]:
         pairs = [(e, o, 0) for e in exposures for o in outcomes]
         if not exposures and len(outcomes) >= 2:
             pairs = [(outcomes[0], outcomes[1], 1)]
-        relation = "NO_ASSOCIATION_WITH" if has_negation(sent) else "ASSOCIATED_WITH"
+        if has_negation(sent):
+            # only explicit null findings become NO_ASSOCIATION_WITH; other negated sentences are too ambiguous for a stub
+            if not _NULL_FINDING.search(sent):
+                continue
+            relation = "NO_ASSOCIATION_WITH"
+        else:
+            relation = "ASSOCIATED_WITH"
         for subj, obj, prio in pairs:
             key = (subj[0], obj[0], relation)
             if key in seen:
