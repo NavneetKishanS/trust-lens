@@ -1,0 +1,74 @@
+# CI: backend tests (stub LLM, in-memory DuckDB) and frontend lint / typecheck / production build.
+# Needs no secrets, no Exasol and no LLM, so it runs the same on forks and on every PR.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LLM_PROVIDER: stub
+      EXASOL_DSN: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Compile check (app, scripts, seed)
+        run: python -m compileall -q backend/app backend/scripts scripts data/seed_signal.py
+
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest -q
+
+  frontend:
+    name: Frontend lint, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit -p .
+
+      - name: Production build
+        run: npm run build
