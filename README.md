@@ -52,6 +52,19 @@ cd backend && ../.venv/bin/python -m app.load --reset      # Synthea + ref table
 Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Without Synthea CSVs, `cd backend && ../.venv/bin/python -m app.devdata` adds 3 labelled dev-fixture patients instead. Stop the API before running the loader: DuckDB allows only one process to open the file. To reset before a demo rehearsal, run `app.load --reset` and `seed_signal.py` again. Responses with the header
 `X-TrustLens-Stub: true` still return contract-shaped example data; `/health`, `/audit`, `/audit/verify` and `/lineage/{id}` are live.
 
+### Run on Exasol (local Exasol Personal)
+Tested with the Exasol Launcher 2.4.0 (`exasol install local`, here in WSL with Podman). The database listens on `localhost:8563`.
+```bash
+export EXASOL_DSN="localhost/<fingerprint>:8563"   # fingerprint: printed in the database log at startup (podman logs <container>)
+export EXASOL_USER=sys
+export EXASOL_PASSWORD_FILE=<deployment dir>/...    # or EXASOL_PASSWORD; the launcher keeps it in secrets.json ("dbPassword")
+cd backend && ../.venv/bin/python -m app.load --reset && ../.venv/bin/python ../data/seed_signal.py
+../.venv/bin/python ../scripts/dev_setup.py prepare        # papers from the cache + knowledge graph
+../.venv/bin/python scripts/demo_path.py                    # with the API running: the whole §13 demo script
+```
+On Exasol the tamper demo works while the API is running: `python -m app.db run scripts/tamper.sql`, then `/audit/verify`.
+Seeding is slower than on DuckDB (~5 min vs ~20 s) because the symptom engine writes row by row.
+
 ### Research engine (Dev C)
 
 ```bash
