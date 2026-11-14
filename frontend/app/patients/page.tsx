@@ -35,6 +35,7 @@ export default function PatientsPage() {
           {loading && !patients && <div className="skeleton" style={{ height: 80 }} />}
           {patients && patients.length === 0 && <div className="empty">No patients returned.</div>}
           {patients && patients.length > 0 && (
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -60,6 +61,7 @@ export default function PatientsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

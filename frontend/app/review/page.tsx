@@ -6,6 +6,7 @@ import type { ReviewItem } from "@/lib/types";
 import ErrorBox from "@/components/ErrorBox";
 import PageHead from "@/components/PageHead";
 import Status from "@/components/Status";
+import Icon from "@/components/Icon";
 
 export default function ReviewPage() {
   const { data, error: loadError, reload: load } = useApi<{ items: ReviewItem[] }>("/review/queue");
@@ -33,7 +34,7 @@ export default function ReviewPage() {
       <PageHead
         eyebrow="Governance · Human oversight"
         title="Clinical Review"
-        sub="Items the system will not decide on its own: AI summary sentences that failed a check, and patient-reported symptoms that are not a known side effect. Approved NEW symptoms become validated rare cases in the Cohort Explorer."
+        sub="Things the system won't decide on its own. A clinician approves or rejects each one. Approved new symptoms become research cases."
         actions={
           <>
             <label className="small row">
@@ -48,47 +49,49 @@ export default function ReviewPage() {
           {urgent > 0 && <Status tone="bad" label={`${urgent} urgent (red-flag) symptom${urgent === 1 ? "" : "s"} · shown first`} />}
           <Status tone="warn" label={`${symptoms} patient symptom${symptoms === 1 ? "" : "s"}`} />
           <Status tone="info" label={`${sentences} summary sentence${sentences === 1 ? "" : "s"}`} />
-          <span className="small muted">Every decision is written to the audit chain (review.decision).</span>
+          <span className="small muted">Every decision is recorded in the audit log.</span>
         </div>
       )}
       {error && <ErrorBox message={`Review queue unavailable: ${error}`} />}
       {items && items.length === 0 && <div className="card"><div className="empty">Nothing waiting for review.</div></div>}
       {items?.map((it) => (
-        <div className={`card${it.priority === "urgent" ? " urgent-card" : ""}`} key={it.item_id}>
+        <div className={`card review-card${it.priority === "urgent" ? " urgent-card" : ""}`} key={it.item_id}>
           <div className="row">
             {it.priority === "urgent" && <Status tone="bad" label="Urgent" />}
-            <Status tone={it.kind === "symptom" ? "warn" : "info"} label={it.kind === "symptom" ? "Patient symptom" : "Summary sentence"} />
-            <code className="small">{it.item_id}</code>
-            <span className="small muted">patient {it.patient_id.slice(0, 8)}… · {it.created_at}</span>
+            <span className="small muted">{it.kind === "symptom" ? "Symptom reported by a patient" : "Sentence from an AI summary"}</span>
           </div>
-          <p style={{ margin: "8px 0" }}>“{it.text}”</p>
-          <div className="notice small">Why: {it.reason}</div>
-          {it.evidence?.length > 0 && (
-            <p className="small muted">
-              Evidence: {it.evidence.map((e) => <code key={e.id} style={{ marginRight: 6 }}>{e.id}</code>)}
-            </p>
-          )}
+          <p className="claim">&ldquo;{it.text}&rdquo;</p>
+          <div className="why">
+            <Icon name="alert" size={14} />
+            <span><b>Why it needs you:</b> {it.reason}</span>
+          </div>
           {done[it.item_id] ? (
-            <p>
+            <p style={{ marginTop: 12 }}>
               <Status value={done[it.item_id].startsWith("Approved") ? "approved" : "rejected"} label={done[it.item_id]} />
             </p>
           ) : (
-            <div className="row" style={{ marginTop: 8 }}>
+            <div className="decide">
               <input
                 type="text"
+                aria-label="Note (optional)"
                 placeholder="Note (optional)"
                 value={notes[it.item_id] ?? ""}
                 onChange={(e) => setNotes((n) => ({ ...n, [it.item_id]: e.target.value }))}
-                style={{ flex: 1 }}
               />
               <button className="approve" disabled={!reviewer.trim()} onClick={() => decide(it, "approve")}>
-                ✓ Approve
+                <Icon name="check" size={14} /> Approve
               </button>
               <button className="reject" disabled={!reviewer.trim()} onClick={() => decide(it, "reject")}>
-                ✕ Reject
+                <Icon name="x" size={14} /> Reject
               </button>
             </div>
           )}
+          <div className="meta-line">
+            <code>{it.item_id}</code>
+            <span>patient {it.patient_id.slice(0, 8)}…</span>
+            <span>{it.created_at.replace("T", " ").slice(0, 16)}</span>
+            {it.evidence?.length > 0 && <span>evidence: {it.evidence.map((e) => <code key={e.id} style={{ marginRight: 6 }}>{e.id}</code>)}</span>}
+          </div>
         </div>
       ))}
     </div>

@@ -172,6 +172,7 @@ export default function CohortExplorer() {
                 <Status value={common.sufficiency.verdict} />
                 <span className="muted">{common.ask_id} · audit #{common.audit_seq}</span>
               </div>
+              <div className="table-wrap">
               <table>
                 <thead>
                   <tr>{common.columns.map((c) => <th key={c} className={/^n_/.test(c) ? "num" : undefined}>{c}</th>)}</tr>
@@ -188,6 +189,7 @@ export default function CohortExplorer() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </>
           )}
         </div>

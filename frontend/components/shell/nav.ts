@@ -1,14 +1,16 @@
 // Single source for navigation, page titles and breadcrumbs.
-export type NavItem = { href: string; label: string; icon: string; group: "Research" | "Governance" | "Clinical views" };
+import type { IconName } from "@/components/Icon";
+
+export type NavItem = { href: string; label: string; icon: IconName; group: "Research" | "Governance" | "Clinical views" };
 
 export const NAV: NavItem[] = [
-  { href: "/", label: "Research Overview", icon: "◎", group: "Research" },
-  { href: "/graph", label: "Knowledge Graph", icon: "⬡", group: "Research" },
-  { href: "/ask", label: "Ask the Data", icon: "⌕", group: "Research" },
-  { href: "/cohorts", label: "Cohort Explorer", icon: "▦", group: "Research" },
-  { href: "/review", label: "Clinical Review", icon: "✓", group: "Governance" },
-  { href: "/audit", label: "Trust & Audit", icon: "⛨", group: "Governance" },
-  { href: "/patients", label: "Patient & physician", icon: "☰", group: "Clinical views" },
+  { href: "/", label: "Research Overview", icon: "overview", group: "Research" },
+  { href: "/graph", label: "Knowledge Graph", icon: "graph", group: "Research" },
+  { href: "/ask", label: "Ask the Data", icon: "search", group: "Research" },
+  { href: "/cohorts", label: "Cohort Explorer", icon: "cohort", group: "Research" },
+  { href: "/review", label: "Clinical Review", icon: "review", group: "Governance" },
+  { href: "/audit", label: "Trust & Audit", icon: "shield", group: "Governance" },
+  { href: "/patients", label: "Patient & physician", icon: "users", group: "Clinical views" },
 ];
 
 export function crumbsFor(path: string): { section: string; page: string } {

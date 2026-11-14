@@ -1,7 +1,9 @@
+import Icon, { type IconName } from "@/components/Icon";
+
 // Status is always colour + icon + text (never colour alone). Each known value carries a plain-language tooltip.
 type Tone = "ok" | "warn" | "bad" | "info" | "muted";
 
-const ICON: Record<Tone, string> = { ok: "✓", warn: "⚠", bad: "✕", info: "◆", muted: "○" };
+const ICON: Record<Tone, IconName> = { ok: "check", warn: "alert", bad: "x", info: "info", muted: "circle" };
 
 const KNOWN: Record<string, [Tone, string, string?]> = {
   // sentences / summaries
@@ -57,7 +59,7 @@ export default function Status({
   const text = label ?? known?.[1] ?? value ?? "Unknown";
   return (
     <span className={`status ${t} ${size ?? ""}`} title={title ?? known?.[2]}>
-      <span aria-hidden>{ICON[t]}</span>
+      <Icon name={ICON[t]} size={size === "lg" ? 14 : 12} strokeWidth={2.4} />
       {text}
     </span>
   );
@@ -66,7 +68,7 @@ export default function Status({
 export function SyntheticFlag({ label = "Planted synthetic signal" }: { label?: string }) {
   return (
     <span className="synthetic-flag" title="Deliberately planted test data (origin='seed_signal' / dev pool). Not a finding about any real vaccine.">
-      ◇ {label}
+      <Icon name="diamond" size={11} strokeWidth={2.4} /> {label}
     </span>
   );
 }
