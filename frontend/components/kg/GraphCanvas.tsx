@@ -53,6 +53,13 @@ export default function GraphCanvas({
     }
     return d;
   }, [edges]);
+  // Only the best-connected concepts are labelled by default, so the first view is readable.
+  // Everything else gets a label on hover, when selected / focused, or once you zoom in.
+  const keyLabels = useMemo(() => {
+    const concepts = nodes.filter((n) => n.type === "concept");
+    const top = [...concepts].sort((a, b) => (degree.get(b.node_id) ?? 0) - (degree.get(a.node_id) ?? 0)).slice(0, 12);
+    return new Set(top.map((n) => n.node_id));
+  }, [nodes, degree]);
   const layoutKey = useMemo(
     () => [nodes.map((n) => n.node_id).join(","), edges.length, links.length, evidence.length, focusId].join("|"),
     [nodes, edges, links, evidence, focusId],
@@ -214,7 +221,7 @@ export default function GraphCanvas({
 
   const hoverNode = hover?.kind === "node" ? nodeById.get(hover.id) : undefined;
   const hoverEdge = hover?.kind === "edge" ? edges.find((e) => e.edge_id === hover.id) : undefined;
-  const markerColors = ["#3f9a2a", "#d39a1f", "#8a9ba4", "#c9504a", "#1f6680", "#b9c6cc"];
+  const markerColors = ["#047857", "#d97706", "#8a9ba4", "#d14343", "#0e7490", "#b9c6cc"];
 
   return (
     <div ref={wrapRef} className="kg-canvas">
@@ -241,7 +248,7 @@ export default function GraphCanvas({
             const c = curve(l.src, l.dst, 0);
             if (!c) return null;
             const isa = l.relation === "IS_A";
-            const color = isa ? "#1f6680" : "#b9c6cc";
+            const color = isa ? "#0e7490" : "#b9c6cc";
             return (
               <path
                 key={l.edge_id}
@@ -316,14 +323,15 @@ export default function GraphCanvas({
                 onMouseLeave={() => setHover(null)}
               >
                 {(sel || isFocus) && (
-                  <circle r={r + 5} fill="none" stroke={sel ? "#5cc33f" : "#134e64"} strokeWidth={2} strokeDasharray={isFocus && !sel ? "3 2" : undefined} />
+                  <circle r={r + 5} fill="none" stroke={sel ? "#10b981" : "#0e5f73"} strokeWidth={2} strokeDasharray={isFocus && !sel ? "3 2" : undefined} />
                 )}
                 {sys === "PAPER" ? (
                   <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={1.5} fill="#fff" stroke={color} strokeWidth={1.6} />
                 ) : (
                   <circle r={r} fill={sys === "FREE" ? "#fff" : color} stroke={sys === "FREE" ? color : "#fff"} strokeWidth={sys === "FREE" ? 1.6 : 2} strokeDasharray={sys === "FREE" ? "3 2" : undefined} />
                 )}
-                {n.type === "concept" && (
+                {n.type === "concept" &&
+                  (sel || isFocus || hover?.id === n.node_id || view.k >= 1.6 || (focusSet ? focusSet.has(n.node_id) : keyLabels.has(n.node_id))) && (
                   <text className="kg-node-label" y={r + 4 + 11 / Math.min(1, view.k)} textAnchor="middle" fontWeight={isFocus ? 650 : 500} style={{ fontSize: 11 / Math.min(1, view.k) }}>
                     {shortLabel(n.label)}
                   </text>

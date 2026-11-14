@@ -54,7 +54,7 @@ export default function TrustAudit() {
           {verify ? (
             verify.valid ? (
               <>
-                <div className="big" style={{ color: "#2b6e1a" }}>✓ Chain intact</div>
+                <div className="big" style={{ color: "#065f46" }}>✓ Chain intact</div>
                 <div className="small muted">{verify.length} events recomputed from the genesis hash · checked {verify.at}</div>
               </>
             ) : (
@@ -92,7 +92,7 @@ export default function TrustAudit() {
         </div>
       </div>
 
-      <div className="grid2" style={{ gridTemplateColumns: "1fr 380px", alignItems: "start" }}>
+      <div className="grid2 grid-aside">
         <div className="card flush">
           <div className="card-head">
             <h2>Event history</h2>

@@ -9,6 +9,8 @@ import GraphCanvas, { type EvidenceLink } from "@/components/kg/GraphCanvas";
 import { EdgeInspector, NodeInspector } from "@/components/kg/EdgeInspector";
 import ErrorBox from "@/components/ErrorBox";
 import PageHead from "@/components/PageHead";
+import Term from "@/components/Term";
+import Icon from "@/components/Icon";
 import Status from "@/components/Status";
 
 const LIT = ["CONSISTENT", "CONTESTED", "SINGLE_SOURCE"] as const;
@@ -157,7 +159,7 @@ function KnowledgeGraph() {
         title="Knowledge Graph"
         sub={
           <>
-            Relationships proposed by the A1 establisher from Europe PMC abstracts, checked word for word by the A2 critic, and compared with other papers and the anonymised pool by the A3 sanity agent.
+            Each line is a relationship found in a published paper. Click one to read the exact sentence it came from, and whether other papers and our patient data agree.
             {graph?.run_id && <span className="faint"> · Build {graph.run_id}</span>}
           </>
         }
@@ -214,6 +216,9 @@ function KnowledgeGraph() {
             <label className="check"><input type="checkbox" checked={showPaperLabels} onChange={() => setShowPaperLabels(!showPaperLabels)} /> Paper years</label>
           </div>
 
+          <details className="more filters-more">
+            <summary>More filters and tools</summary>
+            <div style={{ marginTop: 10 }}>
           <div className="group">
             <div className="panel-title">Connections</div>
             <label className="check"><input type="checkbox" checked={showCites} onChange={() => setShowCites(!showCites)} /> Citations (CITES)<span className="count">{allLinks.filter((l) => l.relation === "CITES").length}</span></label>
@@ -232,7 +237,7 @@ function KnowledgeGraph() {
           </div>
 
           <div className="group">
-            <div className="panel-title">A2 critic</div>
+            <div className="panel-title"><Term k="a2">Quote check</Term></div>
             {["ACCEPTED", "REJECTED"].map((s) => (
               <label key={s} className="check">
                 <input type="checkbox" checked={statusF.has(s)} onChange={() => setStatusF(toggle(statusF, s))} /> {s === "ACCEPTED" ? "Accepted" : "Rejected"}
@@ -242,7 +247,7 @@ function KnowledgeGraph() {
           </div>
 
           <div className="group">
-            <div className="panel-title">A3 literature</div>
+            <div className="panel-title"><Term k="a3">Other papers</Term></div>
             {LIT.map((s) => (
               <label key={s} className="check">
                 <input type="checkbox" checked={litF.has(s)} onChange={() => setLitF(toggle(litF, s))} />
@@ -253,7 +258,7 @@ function KnowledgeGraph() {
           </div>
 
           <div className="group">
-            <div className="panel-title">A3 clinical pool</div>
+            <div className="panel-title"><Term k="a3">Patient data</Term></div>
             {POOL.map((s) => (
               <label key={s} className="check">
                 <input type="checkbox" checked={poolF.has(s)} onChange={() => setPoolF(toggle(poolF, s))} /> {s === "NOT_OBSERVED" ? "Not observed" : s[0] + s.slice(1).toLowerCase()}
@@ -278,6 +283,8 @@ function KnowledgeGraph() {
               )}
             </div>
           </div>
+            </div>
+          </details>
         </div>
 
         {/* ------------------------------------------------ centre */}
@@ -290,7 +297,7 @@ function KnowledgeGraph() {
             <span className="spacer" />
             {contested.length > 0 && (
               <button className="chip" onClick={() => (setSelEdge(contested[0].edge_id), setSelNode(null))} title="Select a relationship where papers disagree">
-                ⚠ {contested.length} contested
+                <Icon name="alert" size={13} /> {contested.length} where papers disagree
               </button>
             )}
             {loading && <span className="spinner dark" />}
@@ -332,7 +339,7 @@ function KnowledgeGraph() {
                 <span><span className="sq" style={{ border: "1.5px solid #8ea3ad" }} />Paper</span>
                 <span><span className="sw" style={{ borderColor: REJECTED_COLOR, borderTopStyle: "dashed" }} />Rejected by A2</span>
                 <span><span className="sw" style={{ borderColor: "#b9c6cc", borderTopStyle: "dotted" }} />Citation</span>
-                <span><span className="sw" style={{ borderColor: "#1f6680", borderTopStyle: "dashed" }} />Ontology (IS_A)</span>
+                <span><span className="sw" style={{ borderColor: "#0e7490", borderTopStyle: "dashed" }} />Ontology (IS_A)</span>
               </div>
             </div>
           ) : (
@@ -379,7 +386,12 @@ function KnowledgeGraph() {
           ) : (
             <div className="inspector">
               <div className="panel-title">Evidence inspector</div>
-              <p className="muted">Select a relationship to see its verbatim quote, source paper, critic result, literature verdict and pool check.</p>
+              <h3 style={{ marginTop: 4 }}>How to read this graph</h3>
+              <ul className="small" style={{ margin: "0 0 8px", paddingLeft: 18, color: "var(--text-2)" }}>
+                <li><b>Circles</b> are medical concepts (vaccines, conditions). <b>Squares</b> are papers.</li>
+                <li><b>Lines</b> are relationships a paper states. <span style={{ color: "var(--amber-700)" }}>Amber</span> means <Term k="contested">papers disagree</Term>.</li>
+                <li><b>Click a line</b> to see the quote, the paper, and whether our data agrees.</li>
+              </ul>
               {contested.length > 0 && (
                 <>
                   <h3 style={{ marginTop: 14 }}>Contested in this view</h3>

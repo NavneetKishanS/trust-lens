@@ -22,15 +22,15 @@ export const RELATION_LABEL: Record<string, string> = {
 };
 
 export const LIT_COLOR: Record<string, string> = {
-  CONSISTENT: "#3f9a2a",
-  CONTESTED: "#d39a1f",
+  CONSISTENT: "#047857",
+  CONTESTED: "#d97706",
   SINGLE_SOURCE: "#8a9ba4",
 };
-export const REJECTED_COLOR = "#c9504a";
+export const REJECTED_COLOR = "#d14343";
 
 export const SYSTEM_COLOR: Record<string, string> = {
-  CVX: "#134e64",
-  RXNORM: "#1f6680",
+  CVX: "#0e5f73",
+  RXNORM: "#0e7490",
   SNOMED: "#2c8a76",
   LOINC: "#a3741c",
   FREE: "#a9b6bd",
