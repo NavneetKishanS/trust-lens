@@ -44,7 +44,7 @@ Rule: **no UI code before the MVP freeze at H11.** If something slips, cut scope
 - [x] A1 establish + A2 critic + citation edges (C, H9)
 - [x] `exposure_outcome_rate` pool SQL (A, H9)
 - [x] A3 sanity: literature + pool (C, H11) — uses Dev A's `db/pool_queries.sql:exposure_outcome_rate` (found automatically)
-- [ ] Exasol live with everything; DuckDB still works (A, H10)
+- [x] Exasol live with everything; DuckDB still works (A, H10) — on a local Exasol Personal (2026.2 nano, launcher 2.4.0, WSL/Podman): load 30 s, seed, facts, pool, `exposure_outcome_rate`, papers + graph, demo path, evals all 1.0, live tamper demo. Same numbers as DuckDB. AWS eu-central-1 not done (sandbox has no terminal)
 
 **Exit:** 5 demo questions answered with SQL + verdict; 5 unsafe ones blocked; `/research/graph?concept=CVX:207` returns cited edges with sanity labels; PL5 fabricated quote rejected.
 
