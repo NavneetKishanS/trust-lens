@@ -1,82 +1,217 @@
-# TrustLens
+<div align="center">
 
-**Every AI sentence is backed by data you can click through to, checked by other agents, and signed off by a human where it matters.**
+# 🔍 TrustLens
 
-Built for the Exasol × Medical Valley EMN Healthcare Hackathon Bayern (Erlangen, November 2026), challenge:
-*"Would you trust an AI with your health?"*
+### Would you trust an AI with your health? Only if you can check it.
 
-| User | What they get |
+**Every AI sentence is backed by data you can click through to, checked by other agents,<br/>and signed off by a human where it matters.**
+
+[![CI](https://github.com/NavneetKishanS/trust-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/NavneetKishanS/trust-lens/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![Exasol](https://img.shields.io/badge/Exasol-Personal-00A7E1)
+![Claude](https://img.shields.io/badge/Claude-Opus%205.5-D97757)
+
+[**Live demo**](https://trustlens-eta-self.vercel.app) · [API docs](https://trustlens-api-snowy.vercel.app/docs) · [Architecture](docs/architecture.md) · [Contracts](docs/context/00-shared.md)
+
+<sub>Built at the Exasol × Medical Valley EMN Healthcare Hackathon Bayern · Erlangen · November 2026</sub>
+
+</div>
+
+---
+
+## The problem
+
+AI summaries of medical records are fluent, fast and impossible to verify. A single wrong number or invented diagnosis
+destroys trust, and a hidden one is worse. TrustLens flips the default: **SQL and rules decide, the LLM only phrases**,
+and every output can be traced back to the row it came from.
+
+## Who it's for
+
+| | User | What they get |
+|---|---|---|
+| 🧑 | **Patient** | A plain-language overview of their records and labs (*"your blood sugar was high in March, now it's in the usual range"*). No diagnoses, no advice. New symptoms they report are classified: listed side effects go to statistics, unexpected ones go to a clinician. |
+| 🩺 | **Physician** | The same overview with clinical codes and clickable lineage, plus a review queue. The AI summarises; it never tells the doctor what to do. |
+| 🔬 | **Researcher** | A knowledge graph of papers where every relation is established, criticised and sanity-checked by three agents, each with a verbatim quote and link. An anonymised patient pool with validated rare cases, and **Ask the data** with the SQL shown and small counts suppressed. |
+
+## How trust is built in
+
+| Guarantee | How |
 |---|---|
-| **Patient** | A plain-language overview of their records and lab results ("your blood sugar was high in March, now it's in the usual range"). No diagnoses, no advice. They can report new symptoms: listed side effects are recorded for statistics, unexpected ones go to a clinician |
-| **Physician** | The same overview with clinical codes and clickable lineage, plus a review queue. The AI summarises; it never tells the doctor what to do |
-| **Researcher** | A knowledge graph of research papers (relations established, criticised and sanity-checked by three agents, each with a verbatim quote and link), an anonymised patient pool with validated rare cases, and "Ask the data" with the SQL shown and small counts suppressed |
-
-Every action is written to a **hash-chained audit log**; every output has **lineage** back to source rows or papers.
+| **Click any sentence → see its source** | Every sentence cites fact IDs. Lineage shows the source rows, the agent, the model and the prompt hash. |
+| **A critic checks every number** | A deterministic critic verifies each number, date and medical term against the cited facts (±0.1, unit-aware), plus an LLM entailment verifier. Anything unsupported goes to human review, never a silent OK. |
+| **Banned language by audience** | Patient text can't say "you have", "diagnosis", "should take" or give doses. Physician text can't "recommend" or "consider prescribing". |
+| **Red flags escalate immediately** | Chest pain, shortness of breath, one-sided weakness and other red flags are detected deterministically, jump to the top of the queue and return fixed emergency advice (112 / 116 117). |
+| **Safe research queries** | Natural-language questions become SQL that's shown to the user, guarded (pool views only, no raw rows, no writes), k-anonymised (n < 20 refused, cells < 5 suppressed) and labelled *association only*. |
+| **Tamper-evident audit log** | Every action is written to a SHA-256 hash chain. **Verify chain** recomputes it live; editing a single row in the database breaks it at that row. |
 
 ## Architecture
 
-Diagrams: [`docs/architecture.md`](docs/architecture.md)
+```mermaid
+flowchart LR
+    UI["Next.js Research Studio"] --> API
 
+    subgraph API["FastAPI"]
+        direction TB
+        CLIN["Clinical engine<br/>facts → generator → critic → verifier<br/>symptom intake · red flags"]
+        RES["Research engine<br/>establisher → critic → sanity agents<br/>Ask the data (guard + k-anon)"]
+        GOV["Governance<br/>review queue · lineage · audit hash chain"]
+    end
+
+    API --> DB[("Exasol<br/>(DuckDB fallback)<br/>curated EHR · ref · community<br/>pool views · research · gov")]
+    API -.phrasing only.-> LLM["Claude Opus 5.5<br/>Bedrock · Anthropic API · stub"]
+    EPMC["Europe PMC"] --> RES
+    SYN["Synthea<br/>~1,000 synthetic patients"] --> DB
 ```
-FastAPI  ──►  Exasol on AWS eu-central-1 (DuckDB fallback): curated Synthea EHR · ref · community · pool views · research · gov
-   │     ──►  Claude Opus 5.5 (Bedrock / Anthropic API / stub)
-   │     ──►  Europe PMC REST (papers)
-   └── Next.js UI (after the MVP freeze)
-```
 
-## Team docs (start here)
+Full diagrams and data flow: [`docs/architecture.md`](docs/architecture.md).
 
-| File | For |
-|---|---|
-| [`docs/context/00-shared.md`](docs/context/00-shared.md) | Everyone: scope, data and API contracts, decision rules, milestones, demo script |
-| [`docs/milestones.md`](docs/milestones.md) | The 20-hour milestone tracker with owners and exit tests |
-| [`docs/context/01-dev-a-data.md`](docs/context/01-dev-a-data.md) | Dev A: Exasol, Synthea load, facts SQL, anonymised pool, planted signal |
-| [`docs/context/02-dev-b-clinical.md`](docs/context/02-dev-b-clinical.md) | Dev B: API core, LLM client, audit + lineage, patient/physician summaries, symptom loop, review |
-| [`docs/context/03-dev-c-research.md`](docs/context/03-dev-c-research.md) | Dev C: papers, knowledge graph agents, Ask the data, then UI |
-| [`CLAUDE.md`](CLAUDE.md) | AI coding agents: read this first |
+**Stack:** FastAPI · Pydantic · sqlglot · pyexasol / DuckDB · Anthropic SDK (Bedrock) · Next.js 16 · React 19 · TypeScript
 
 ## Quick start
 
-```bash
-cp .env.example .env              # fill in credentials; never commit .env (LLM_PROVIDER=stub works without any)
-python3.12 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
-.venv/bin/python -m pytest backend/tests -q
-.venv/bin/uvicorn app.main:app --app-dir backend --reload --port 8000    # Swagger: http://localhost:8000/docs
-# Generate Synthea CSVs (Java 17+) into data/synthea/csv/ — see docs/context/01-dev-a-data.md §4
-cd backend && ../.venv/bin/python -m app.load --reset      # Synthea + ref tables -> DuckDB (or Exasol if EXASOL_DSN is set), ~15 s
-../.venv/bin/python ../data/seed_signal.py                  # planted PL2/PL3/PL4 + demo patient (origin='seed_signal'), ~20 s
-../.venv/bin/python -m app.factsql --check 5                # facts for 5 random patients; every source row must exist
-../.venv/bin/python scripts/check_seed.py --demo             # PL2 by age band from the pool; M2 exit path for the demo patient
-../.venv/bin/python scripts/smoke_summaries.py 10           # stub summaries for 10 real patients, both audiences
-```
-Without `EXASOL_DSN` the API uses a local DuckDB file (`data/trustlens.duckdb`). Without Synthea CSVs, `cd backend && ../.venv/bin/python -m app.devdata` adds 3 labelled dev-fixture patients instead. Stop the API before running the loader: DuckDB allows only one process to open the file. To reset before a demo rehearsal, run `app.load --reset` and `seed_signal.py` again. Responses with the header
-`X-TrustLens-Stub: true` still return contract-shaped example data; `/health`, `/audit`, `/audit/verify` and `/lineage/{id}` are live.
+> **Prerequisites:** Python 3.12, Node 20+. No API keys needed: `LLM_PROVIDER=stub` works out of the box.
 
-### Run on Exasol (local Exasol Personal)
-Tested with the Exasol Launcher 2.4.0 (`exasol install local`, here in WSL with Podman). The database listens on `localhost:8563`.
 ```bash
-export EXASOL_DSN="localhost/<fingerprint>:8563"   # fingerprint: printed in the database log at startup (podman logs <container>)
-export EXASOL_USER=sys
-export EXASOL_PASSWORD_FILE=<deployment dir>/...    # or EXASOL_PASSWORD; the launcher keeps it in secrets.json ("dbPassword")
-cd backend && ../.venv/bin/python -m app.load --reset && ../.venv/bin/python ../data/seed_signal.py
-../.venv/bin/python ../scripts/dev_setup.py prepare        # papers from the cache + knowledge graph
-../.venv/bin/python scripts/demo_path.py                    # with the API running: the whole §13 demo script
+git clone https://github.com/NavneetKishanS/trust-lens.git
+cd trust-lens
+cp .env.example .env
+./start.sh
 ```
-On Exasol the tamper demo works while the API is running: `python -m app.db run scripts/tamper.sql`, then `/audit/verify`.
-Seeding is slower than on DuckDB (~5 min vs ~20 s) because the symptom engine writes row by row.
 
-### Research engine (Dev C)
+That's it. `start.sh` creates the virtualenv, installs dependencies, picks a database and starts both servers:
+
+| | URL |
+|---|---|
+| Research Studio (UI) | http://localhost:3000 |
+| API + Swagger | http://localhost:8000/docs |
+
+`Ctrl+C` stops both. Without real data loaded, it builds a synthetic demo database automatically.
+
+| Flag | Effect |
+|---|---|
+| `./start.sh --demo` | Always use the local demo DB (`data/trustlens_demo.duckdb`) |
+| `./start.sh --reset` | Delete and rebuild the demo DB |
+
+## Loading the full dataset
+
+<details>
+<summary><b>Synthea + planted signal on DuckDB</b></summary>
+
+Generate Synthea CSVs (Java 17+) into `data/synthea/csv/` as described in [`docs/context/01-dev-a-data.md`](docs/context/01-dev-a-data.md) §4, then:
 
 ```bash
 cd backend
-../.venv/bin/python -m app.research.papers              # fetch + cache Europe PMC papers (data/papers/, git-ignored)
-../.venv/bin/python -m app.research.papers --offline    # reload from the cache only
-../.venv/bin/python -m app.research.devpool             # DEV ONLY: stand-in pool.* tables until db/pool_views.sql exists
+../.venv/bin/python -m app.load --reset           # Synthea + reference tables, ~15 s
+../.venv/bin/python ../data/seed_signal.py         # planted signals + demo patient, ~20 s
+../.venv/bin/python ../scripts/dev_setup.py prepare  # papers from cache + knowledge graph
 ```
-Then in Swagger: `POST /research/graph/build`, and try the questions from `GET /research/ask/templates`.
-Before Dev A's `python -m app.load --reset`, run `python -m app.research.devpool --drop`.
 
-## Data
+Stop the API before loading: DuckDB allows only one process per file.
+No Synthea CSVs? `python -m app.devdata` adds three labelled dev-fixture patients instead.
 
-All patient data is **synthetic** (Synthea). The research signal used in the demo is planted on purpose and labelled as such.
-Paper abstracts are fetched from Europe PMC at build time and are not committed.
+</details>
+
+<details>
+<summary><b>Run on Exasol (local Exasol Personal)</b></summary>
+
+```bash
+exasol install local                               # Exasol Launcher; listens on localhost:8563
+export EXASOL_DSN="localhost/<fingerprint>:8563"
+export EXASOL_USER=sys
+export EXASOL_PASSWORD_FILE=~/.exasol-starter-kit/credentials/personal_sys_password   # or EXASOL_PASSWORD
+cd backend && ../.venv/bin/python -m app.load --reset && ../.venv/bin/python ../data/seed_signal.py
+../.venv/bin/python ../scripts/dev_setup.py prepare
+```
+
+With the API running, `python scripts/demo_path.py` walks the whole demo script end to end.
+Seeding takes ~5 min on Exasol (vs ~20 s on DuckDB) because the symptom engine writes row by row.
+
+</details>
+
+<details>
+<summary><b>Research engine</b></summary>
+
+```bash
+cd backend
+../.venv/bin/python -m app.research.papers            # fetch + cache Europe PMC papers (git-ignored)
+../.venv/bin/python -m app.research.papers --offline  # reload from cache only
+```
+
+Then `POST /research/graph/build` in Swagger and try the questions from `GET /research/ask/templates`.
+
+</details>
+
+<details>
+<summary><b>LLM providers</b></summary>
+
+Set `LLM_PROVIDER` in `.env`:
+
+| Value | Needs |
+|---|---|
+| `stub` | Nothing. Deterministic, contract-shaped output. Always works. |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `bedrock` | AWS credentials, `AWS_REGION`, `BEDROCK_MODEL_ID` |
+
+</details>
+
+## Demo walkthrough
+
+1. **Patient:** open the overview and click a sentence to see the lab rows behind it. Report *"tired, headache, blurred vision"*: two are recorded as known side effects, one is flagged.
+2. **Physician:** same patient with codes and lineage. Toggle `inject_error` and watch the critic catch the wrong number. Approve the blurred-vision report in the review queue.
+3. **Researcher:** explore the knowledge graph around CVX 207, where each edge has a verbatim quote, paper link and sanity label. Ask *"Is hypertension onset more common after the Moderna vaccine in patients over 40?"* to see the SQL, suppressed cells and the *association only* label. The approved symptom now appears in rare cases.
+4. **Proof:** hit **Verify chain** (valid), tamper with one row via `python -m app.db run scripts/tamper.sql`, verify again (broken at row #N).
+
+> ⚠️ The vaccine–hypertension signal is **planted synthetic data** (`origin='seed_signal'`) used to demonstrate the pipeline. It is not a finding about any real vaccine.
+
+## API
+
+| Area | Endpoints |
+|---|---|
+| Patients | `GET /patients` · `GET /patients/{id}/facts` · `GET /patients/{id}/summary` · `POST /patients/{id}/reports` |
+| Oversight | `GET /review/queue` · `POST /review/{item_id}` |
+| Research | `GET /research/graph` · `POST /research/graph/build` · `GET /research/edges/{id}` · `POST /research/ask` · `GET /research/ask/templates` · `GET /pool/rare` |
+| Governance | `GET /audit` · `GET /audit/verify` · `GET /lineage/{id}` · `POST /evals/run` · `GET /evals/latest` |
+| System | `GET /health` |
+
+Full contracts (tables, JSON shapes, decision rules, audit hash): [`docs/context/00-shared.md`](docs/context/00-shared.md).
+
+## Project layout
+
+```
+backend/
+  app/clinical/    summaries, critic, symptom classification, red flags, review queue
+  app/research/    papers, knowledge-graph agents, Ask the data, SQL guard
+  app/             API routes, audit chain, lineage, LLM client, loaders
+  tests/           pytest suite (runs on stub LLM + in-memory DuckDB)
+frontend/          Next.js Research Studio
+db/                schemas, facts SQL, anonymised pool views
+data/              seed_signal.py, cached papers, local databases (git-ignored)
+scripts/           dev setup, tamper demo
+docs/              architecture, milestones, team context files
+api/               Vercel entry point for the hosted demo
+```
+
+## Testing
+
+```bash
+.venv/bin/python -m pytest backend/tests -q
+cd frontend && npm run lint && npx tsc --noEmit && npm run build
+```
+
+CI runs both on every pull request with no secrets, no Exasol and no LLM.
+
+## Contributing
+
+Start with [`CLAUDE.md`](CLAUDE.md) and [`docs/context/00-shared.md`](docs/context/00-shared.md). The ground rules:
+
+- Don't change table names, columns, endpoint paths or JSON shapes without updating `00-shared.md` in the same change.
+- SQL and rules decide; the LLM only extracts and phrases, and a deterministic critic checks its output.
+- Every output gets lineage and an audit event.
+- `LLM_PROVIDER=stub` must always work.
+- Synthetic data only. Never commit secrets, Synthea output or paper abstracts.
+
+## Data & privacy
+
+All patient data is **synthetic**, generated with [Synthea](https://synthetichealth.github.io/synthea/). Research signals used in the demo are planted on purpose and labelled as such. Paper abstracts are fetched from Europe PMC at build time and are not committed.
