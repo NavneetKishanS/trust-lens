@@ -1,0 +1,9 @@
+# Vercel deployment of the API (api/index.py). Local dev uses backend/requirements.txt.
+fastapi==0.162.6
+pydantic==2.14.3
+anthropic==2.8.0
+duckdb==2.0.0
+sqlglot==30.31.0
+python-dotenv==1.2.4
+pandas==3.1.1
+pytz==2026.6

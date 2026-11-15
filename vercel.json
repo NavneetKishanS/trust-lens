@@ -1,0 +1,11 @@
+{
+  "git": {
+    "deploymentEnabled": false
+  },
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "{backend/app/**,db/**,data/trustlens.duckdb,data/trustlens.duckdb.wal}",
+      "maxDuration": 60
+    }
+  }
+}

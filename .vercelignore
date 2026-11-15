@@ -1,0 +1,17 @@
+.env
+.env.*
+.venv
+frontend
+data/papers
+data/synthea
+data/out
+data/api.log
+**/__pycache__
+**/*.pyc
+backend/tests
+brag-output
+docs
+.claude
+.pytest_cache
+.DS_Store
+data/*.bak-*
